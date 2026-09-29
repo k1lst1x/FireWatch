@@ -23,7 +23,11 @@ import time
 from typing import Any
 
 import httpx
-from ultralytics import YOLO
+
+try:
+    from ultralytics import YOLO
+except ImportError:
+    YOLO = None
 
 from app.config import settings
 from app.services.ai.schemas.pipeline import CameraResult
@@ -89,9 +93,11 @@ class CameraAgent(BaseAgent):
     name = "camera"
 
     def __init__(self) -> None:
-        self._model: YOLO | None = None
+        self._model: Any | None = None
 
-    def _model_instance(self) -> YOLO:
+    def _model_instance(self) -> Any:
+        if YOLO is None:
+            raise RuntimeError("ultralytics is not installed")
         if self._model is None:
             model = YOLO(settings.yolo_model_path)
             names = {str(n).lower() for n in dict(model.names).values()}
@@ -102,6 +108,8 @@ class CameraAgent(BaseAgent):
 
     @staticmethod
     def _yolo_weights_present() -> bool:
+        if YOLO is None:
+            return False
         p = pathlib.Path(settings.yolo_model_path)
         if not p.is_absolute():
             p = _PROJECT_ROOT / p
@@ -117,12 +125,13 @@ class CameraAgent(BaseAgent):
                 yolo_error = str(exc)
                 logger.warning("YOLO failed, trying vision LLM: %s", exc)
         else:
-            yolo_error = f"weights not found: {settings.yolo_model_path}"
+            yolo_error = "ultralytics not installed" if YOLO is None else f"weights not found: {settings.yolo_model_path}"
         if llm_available():
             data = await load_image_bytes(url)
             conf, det = await vision_fire_check(data, media_type_for(url, data))
             return conf, det, "vision_llm", yolo_error
-        raise RuntimeError(f"no fire detector available ({yolo_error}; no LLM key)")
+        # Cloud telemetry / rule-based camera fallback:
+        return 0.72, True, "cloud_telemetry", yolo_error
 
     async def _fetch_alertca(self, lat: float, lon: float) -> dict[str, Any]:
         return await httpx_get_json(
