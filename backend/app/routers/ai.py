@@ -1,3 +1,4 @@
+import asyncio
 import csv
 import io
 import uuid
@@ -18,6 +19,7 @@ from app.services.ai.integrations import integration_status
 from app.services.ai.schemas.pipeline import AlertEvent, ConfirmationStatus, PipelineResult
 
 router = APIRouter(prefix="/ai", tags=["ai"])
+_analysis_slots = asyncio.BoundedSemaphore(settings.max_concurrent_analyses)
 
 
 _AGENT_CATALOG = (
@@ -198,6 +200,7 @@ async def agent_trace(
 async def get_live_weather(
     lat: float = Query(default=37.7749, ge=-90, le=90),
     lon: float = Query(default=-122.4194, ge=-180, le=180),
+    _user=Depends(require_user),
 ):
     """Real-time live weather conditions with fire spread risk index."""
     async with httpx.AsyncClient(timeout=8.0) as client:
@@ -268,7 +271,7 @@ async def get_live_weather(
 
 
 @router.get("/telemetry/nasa-hotspots")
-async def get_nasa_hotspots():
+async def get_nasa_hotspots(_user=Depends(require_user)):
     """Real-time active wildfires and thermal anomalies from NASA FIRMS Area API and NASA EONET v3."""
     hotspots = []
     async with httpx.AsyncClient(timeout=8.0) as client:
@@ -429,20 +432,26 @@ async def analyze(
     db: AsyncSession = Depends(get_db),
 ) -> PipelineResult:
     try:
+        await asyncio.wait_for(_analysis_slots.acquire(), timeout=0.05)
+    except TimeoutError as exc:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Analysis capacity is temporarily exhausted") from exc
+    try:
         # Vision and LLM dependencies are intentionally loaded only for an
         # analysis request.  That keeps health, settings, and camera browsing
         # available during a lightweight local setup.
         from app.services.ai.agents import OrchestratorAgent
 
         result = await OrchestratorAgent().run(event=event)
+        row = _incident_row(result, event)
+        existing = await db.get(Incident, row.id)
+        if existing is None:
+            db.add(row)
+            await db.commit()
+        return result
     except Exception as exc:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
-    row = _incident_row(result, event)
-    existing = await db.get(Incident, row.id)
-    if existing is None:
-        db.add(row)
-        await db.commit()
-    return result
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Analysis failed") from exc
+    finally:
+        _analysis_slots.release()
 
 
 @router.get("/incidents")

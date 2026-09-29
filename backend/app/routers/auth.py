@@ -8,7 +8,6 @@ from app.db.session import get_db
 from app.db.models import User, UserRole
 from app.core.auth import create_access_token
 from app.core.security import hash_password, verify_password
-from app.config import settings
 from app.dependencies import require_user
 from app.schemas.routers import RegisterRequest, LoginRequest, TokenResponse
 
@@ -21,8 +20,9 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == body.email))
     if result.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Email already registered")
-    role = UserRole.ADMIN if body.email.lower() in settings.admin_emails else UserRole.USER
-    user = User(email=body.email, hashed_password=hash_password(body.password), role=role)
+    # Public registration never establishes operator identity.  Administrators
+    # must be provisioned out of band after identity verification.
+    user = User(email=body.email, hashed_password=hash_password(body.password), role=UserRole.USER)
     db.add(user)
     await db.commit()
     await db.refresh(user)

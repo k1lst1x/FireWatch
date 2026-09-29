@@ -94,9 +94,14 @@ export interface AgentTraceResponse {
 }
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = localStorage.getItem('firewatch-access-token')
   const res = await fetch(`/api${path}`, {
     ...init,
-    headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(init?.headers ?? {}),
+    },
   })
   if (!res.ok) {
     let detail = res.statusText
@@ -108,6 +113,11 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error(`${res.status}: ${detail}`)
   }
   return res.json() as Promise<T>
+}
+
+export function setAccessToken(token: string | null) {
+  if (token) localStorage.setItem('firewatch-access-token', token)
+  else localStorage.removeItem('firewatch-access-token')
 }
 
 export const api = {

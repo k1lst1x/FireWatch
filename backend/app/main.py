@@ -14,6 +14,7 @@ from app.routers.auth import router as auth_router
 from app.routers.federation import router as federation_router
 from app.services.ai.integrations import integration_status
 from app.dependencies import require_user
+from app.middleware.rate_limit import RateLimitMiddleware, RequestBodyLimitMiddleware
 from fastapi import Depends
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -40,6 +41,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(RateLimitMiddleware)
+app.add_middleware(RequestBodyLimitMiddleware, max_bytes=settings.max_analysis_request_bytes)
 app.include_router(auth_router)
 app.include_router(ai_router)
 app.include_router(federation_router)

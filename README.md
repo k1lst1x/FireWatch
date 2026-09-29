@@ -14,7 +14,11 @@ uv run python scripts/check_setup.py --find-fires
 uv run uvicorn app.main:app --app-dir backend --reload
 ```
 
-Frontend (second terminal): `cd frontend && npm install && npm run dev`, then open http://localhost:5173 and launch the dispatch console directly. Pick a location + image → **Run Analysis** → **Dispatch** or **False alarm**. Set `AUTH_REQUIRED=true` in `.env` only for deployments that need operator sign-in.
+Frontend (second terminal): `cd frontend && npm install && npm run dev`, then open http://localhost:5173. The API requires an operator bearer token by default; register/login through `/docs` while the project has no browser sign-in screen. Privileged dispatch and federation actions always require an administrator token, including local development.
+
+After verifying an operator's identity, promote their already registered account only from a trusted local shell: `PYTHONPATH=backend uv run python backend/scripts/promote_admin.py operator@example.com`. Public registration always creates a standard user. The browser API helper reads a token from `localStorage` key `firewatch-access-token`; this is temporary until a proper sign-in screen is added.
+
+The application rate limits login, registration, and analysis requests per process. For multi-worker or multi-replica production deployments, also configure shared rate limiting at the ingress or API gateway.
 
 The API is then available at `http://localhost:8000`, with interactive docs at
 `http://localhost:8000/docs`.
