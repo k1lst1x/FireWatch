@@ -72,8 +72,7 @@ export default function Settings() {
   useEffect(() => { void refresh() }, [refresh])
 
   const browserKeys = useMemo(() => [
-    { label: 'Google 3D Tiles', environment: 'VITE_GOOGLE_3D_TILES_KEY', configured: Boolean(import.meta.env.VITE_GOOGLE_3D_TILES_KEY), used_for: 'Photorealistic 3D map tiles in the browser' },
-    { label: 'Cesium Ion', environment: 'VITE_CESIUM_ION_TOKEN', configured: Boolean(import.meta.env.VITE_CESIUM_ION_TOKEN), used_for: 'Terrain and Cesium OSM Buildings in the browser' },
+    { label: 'Tactical Basemap', environment: 'VITE_MAP_TILES', configured: true, used_for: 'Key-free Esri Dark Gray tactical tiles with automatic provider fallback (Zero GPU crash)' },
   ], [])
 
   return (

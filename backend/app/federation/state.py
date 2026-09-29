@@ -22,7 +22,11 @@ def empty_state() -> dict:
                 "online": True,
                 "bbox": s["bbox"],
                 "labels": 0,
+                "dispatcher_labels": 0,
+                "approvals": 0,
+                "rejections": 0,
                 "fp_rate": None,
+                "miss_rate": None,
                 "params": dict(DEFAULT_PARAMS),
             }
             for sid, s in STATIONS.items()
@@ -61,5 +65,10 @@ def global_params() -> dict:
 
 def refresh_label_counts(state: dict) -> dict:
     for s in state["stations"]:
-        s["labels"] = len(load_station_labels(s["id"]))
+        labels = load_station_labels(s["id"])
+        dispatcher = [label for label in labels if label.get("source") == "dispatcher"]
+        s["labels"] = len(labels)
+        s["dispatcher_labels"] = len(dispatcher)
+        s["approvals"] = sum(1 for label in dispatcher if int(label.get("fire", 0)) == 1)
+        s["rejections"] = sum(1 for label in dispatcher if int(label.get("fire", 0)) != 1)
     return state

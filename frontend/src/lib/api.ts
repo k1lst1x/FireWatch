@@ -93,6 +93,40 @@ export interface AgentTraceResponse {
   agents: AgentTraceEntry[]
 }
 
+export type FederationStationId = 'north_bay' | 'sierra' | 'socal'
+
+export interface FederationStation {
+  id: FederationStationId
+  name: string
+  online: boolean
+  labels: number
+  dispatcher_labels: number
+  approvals: number
+  rejections: number
+  fp_rate: number | null
+  miss_rate: number | null
+  params: {
+    camera_weight: number
+    fusion_threshold: number
+    thermal_only_threshold: number
+  }
+}
+
+export interface FederationRound {
+  round: number
+  fp_rate: number
+  miss_rate: number
+  per_station: Record<FederationStationId, number>
+}
+
+export interface FederationStatus {
+  round: number
+  running: boolean
+  stations: FederationStation[]
+  global_params: FederationStation['params']
+  history: FederationRound[]
+}
+
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const token = localStorage.getItem('firewatch-access-token')
   const res = await fetch(`/api${path}`, {
@@ -123,6 +157,8 @@ export function setAccessToken(token: string | null) {
 export const api = {
   status: () => call<PipelineStatus>('/ai/status'),
   agentTrace: () => call<AgentTraceResponse>('/ai/agent-trace'),
+  federationStatus: () => call<FederationStatus>('/federation/status'),
+  runFederationRound: (rounds = 1) => call<FederationStatus>('/federation/round', { method: 'POST', body: JSON.stringify({ rounds }) }),
   incidents: () => call<Incident[]>('/ai/incidents'),
   demoImages: () => call<string[]>('/ai/demo-images'),
   cameraDirectory: () => call<CameraDirectoryResponse>('/ai/cameras'),

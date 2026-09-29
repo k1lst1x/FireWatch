@@ -1,4 +1,4 @@
-/* Overlay chrome for the 3D map dashboard. Scoped under .fwmap. */
+/* Overlay chrome and 2D tactical map styling. Scoped under .fwmap. */
 
 .fwmap {
   --night: #05060a;
@@ -18,17 +18,215 @@
   overflow: hidden;
 }
 
-/* Cesium ships its own widget chrome; the map is the whole canvas here. */
-.fwmap .cesium-viewer,
-.fwmap .cesium-widget,
-.fwmap .cesium-widget canvas {
+/* 2D Leaflet Container.
+   `isolation` traps Leaflet's internal panes/controls (z-index 400-1000) inside
+   the map's own stacking context, so markers, tooltips and map controls can
+   never paint over the HUD panels layered above it. */
+.fwmap .leaflet-container {
   width: 100%;
   height: 100%;
-  background: var(--night);
+  /* OSM land tone, so the street basemap loads in without a dark flash */
+  background: #e8e4dd !important;
+  font-family: inherit;
+  z-index: 0;
+  isolation: isolate;
 }
-.fwmap .cesium-viewer-bottom,
-.fwmap .cesium-widget-credits {
-  display: none !important;
+
+/* The map host sits underneath every HUD overlay (which use z-20). */
+.fwmap > [data-map-ready] {
+  z-index: 0;
+}
+
+/* Map controls stay below the HUD but above map tiles/markers. */
+.fwmap .leaflet-control-container {
+  position: relative;
+  z-index: 10;
+}
+
+/* Custom dark zoom controls positioned bottom-right */
+.fwmap .leaflet-control-zoom {
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 12px !important;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7) !important;
+  background: rgba(12, 14, 20, 0.85) !important;
+  backdrop-filter: blur(14px);
+  margin-bottom: 70px !important;
+  margin-right: 20px !important;
+}
+
+.fwmap .leaflet-control-zoom-in,
+.fwmap .leaflet-control-zoom-out {
+  background: transparent !important;
+  color: #fff !important;
+  border: none !important;
+  width: 32px !important;
+  height: 32px !important;
+  line-height: 32px !important;
+  font-size: 16px !important;
+  transition: background 0.2s;
+}
+
+.fwmap .leaflet-control-zoom-in:hover,
+.fwmap .leaflet-control-zoom-out:hover {
+  background: rgba(255, 107, 31, 0.2) !important;
+  color: #ff9500 !important;
+}
+
+.fwmap .leaflet-control-zoom-in {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Custom dark layers control */
+.fwmap .leaflet-control-layers {
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7) !important;
+  background: rgba(12, 14, 20, 0.88) !important;
+  backdrop-filter: blur(14px) !important;
+  color: #fff !important;
+  margin-bottom: 70px !important;
+  margin-right: 12px !important;
+}
+
+.fwmap .leaflet-control-layers-toggle {
+  background-color: transparent !important;
+  filter: invert(1);
+}
+
+.fwmap .leaflet-control-layers-expanded {
+  padding: 10px 14px !important;
+  font-size: 12px !important;
+  color: #eee !important;
+}
+
+.fwmap .leaflet-control-layers label {
+  cursor: pointer;
+  margin: 3px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Leaflet dark popups */
+.fwmap .leaflet-popup-content-wrapper {
+  background: rgba(12, 14, 20, 0.92) !important;
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 140, 60, 0.3) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8) !important;
+  color: var(--ash) !important;
+  padding: 0 !important;
+}
+
+.fwmap .leaflet-popup-tip {
+  background: rgba(12, 14, 20, 0.92) !important;
+  border: 1px solid rgba(255, 140, 60, 0.3) !important;
+}
+
+.fwmap .leaflet-popup-content {
+  margin: 10px 14px !important;
+  line-height: 1.4 !important;
+}
+
+/* Custom Marker Styling */
+.fw-incident-marker {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+}
+
+.fw-incident-marker .fw-marker-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--marker-color, #ff5500);
+  opacity: 0.3;
+  animation: fw-ring-pulse 2s infinite ease-out;
+}
+
+.fw-incident-marker .fw-marker-core {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--marker-color, #ff5500);
+  border: 2px solid #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  box-shadow: 0 0 14px var(--marker-color, #ff5500);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.fw-incident-marker:hover .fw-marker-core {
+  transform: scale(1.25);
+  box-shadow: 0 0 22px var(--marker-color, #ff5500);
+}
+
+.fw-incident-marker.is-selected .fw-marker-core {
+  transform: scale(1.35);
+  border-color: #ffd700;
+  box-shadow: 0 0 28px #ffd700, 0 0 12px var(--marker-color, #ff5500);
+}
+
+@keyframes fw-ring-pulse {
+  0% { transform: scale(0.6); opacity: 0.8; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+
+/* Camera Station Marker */
+.fw-camera-marker {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  cursor: pointer;
+}
+
+.fw-camera-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  background: rgba(14, 22, 36, 0.92);
+  border: 1.5px solid #00d4ff;
+  color: #00d4ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.4);
+  transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.fw-camera-marker:hover .fw-camera-icon {
+  transform: scale(1.2);
+  border-color: #ffffff;
+  box-shadow: 0 0 18px rgba(0, 212, 255, 0.8);
+}
+
+.fw-camera-marker.is-selected .fw-camera-icon {
+  transform: scale(1.3);
+  border-color: #ff9500;
+  color: #ff9500;
+  box-shadow: 0 0 24px rgba(255, 149, 0, 0.9);
+}
+
+.fw-camera-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #34c759;
+  box-shadow: 0 0 6px #34c759;
 }
 
 .fwmap-panel {
@@ -149,10 +347,59 @@
 
 .fwmap-boot {
   position: absolute; inset: 0; z-index: 50; display: grid; place-items: center;
-  background: var(--night); transition: opacity 0.7s ease;
+  background: var(--night); transition: opacity 0.3s ease;
 }
 .fwmap-boot.is-done { opacity: 0; pointer-events: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .fwmap *, .fwmap *::before { animation-duration: 0.001s !important; transition-duration: 0.001s !important; }
+}
+
+/* Raw light basemap tiles (OSM fallback) inverted into the tactical night palette */
+.fwmap .leaflet-tile-pane .fw-tiles-invert {
+  filter: invert(1) hue-rotate(180deg) brightness(0.82) contrast(1.05) saturate(0.6);
+}
+
+/* Compact attribution required by OpenStreetMap / Esri terms */
+.fwmap .leaflet-control-attribution {
+  background: rgba(8, 10, 16, 0.6) !important;
+  color: rgba(244, 237, 228, 0.45) !important;
+  font-size: 9px !important;
+  padding: 1px 6px !important;
+  border-radius: 6px 0 0 0;
+  backdrop-filter: blur(8px);
+}
+
+.fwmap .leaflet-control-attribution a {
+  color: rgba(244, 237, 228, 0.65) !important;
+}
+
+/* Marker tooltips in the tactical palette (Leaflet ships a white default) */
+.fwmap .leaflet-tooltip {
+  background: rgba(10, 12, 18, 0.92) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6) !important;
+  color: var(--ash) !important;
+  padding: 6px 9px !important;
+  backdrop-filter: blur(10px);
+}
+
+.fwmap .leaflet-tooltip-top::before {
+  border-top-color: rgba(10, 12, 18, 0.92) !important;
+}
+.fwmap .leaflet-tooltip-bottom::before {
+  border-bottom-color: rgba(10, 12, 18, 0.92) !important;
+}
+.fwmap .leaflet-tooltip-left::before {
+  border-left-color: rgba(10, 12, 18, 0.92) !important;
+}
+.fwmap .leaflet-tooltip-right::before {
+  border-right-color: rgba(10, 12, 18, 0.92) !important;
+}
+
+/* Extra separation so markers stay legible over the light street basemap */
+.fw-incident-marker .fw-marker-core,
+.fw-camera-icon {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45));
 }

@@ -104,7 +104,7 @@ export function InspirationShowcase() {
             Platform Capabilities
           </span>
           <h2 className="mt-6 text-center text-[clamp(28px,3.8vw,48px)] font-bold tracking-tight text-white max-w-[940px] mx-auto leading-[1.2]">
-            Providing Smart, End-to-End Wildfire Telemetry Backed by Spaceborne Sensors, Google 3D Tiles, and Zero-Latency Decisioning.
+            Providing Smart, End-to-End Wildfire Telemetry Backed by Spaceborne Sensors, Tactical 2D Radar, and Zero-Latency Decisioning.
           </h2>
           <div className="mt-6">
             <button
@@ -142,7 +142,7 @@ export function InspirationShowcase() {
                 <div className="text-[12px] font-bold text-white flex items-center gap-1.5">
                   <CheckCircle2 size={13} className="text-[#10b981]" /> 99.8% Spatial Match
                 </div>
-                <div className="text-[10px] text-zinc-400">Google 3D Elevation Clamped</div>
+                <div className="text-[10px] text-zinc-400">Tactical Basemap Clamped</div>
               </div>
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex items-end p-6">
                 <span className="mono text-[12px] font-bold uppercase tracking-wider text-[#ff9d42] bg-black/70 px-3.5 py-1.5 rounded-full border border-[#ff5a00]/30 backdrop-blur">
@@ -211,18 +211,18 @@ export function InspirationShowcase() {
             >
               <div className="absolute top-6 left-6">
                 <span className="mono text-[10px] font-bold uppercase tracking-wider bg-[#0066f5] text-white px-2.5 py-1 rounded-full">
-                  TIER 1 MESH
+                  TACTICAL MAP
                 </span>
               </div>
-              <h3 className="text-[22px] font-bold text-white mb-2">Google Photorealistic 3D Tiles</h3>
+              <h3 className="text-[22px] font-bold text-white mb-2">CartoDB Dark Tactical Radar</h3>
               <p className="text-[13.5px] text-zinc-300 mb-4 leading-relaxed">
-                Stream dense 3D photogrammetric building meshes directly into WebGL with hardware-accelerated LOD streaming and true textures.
+                Stream dense 2D geospatial basemaps and live sensors with zero GPU freezes, lightweight footprint, and high-contrast night palette.
               </p>
               <button
                 onClick={() => navigate('/dashboard')}
                 className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#60a5fa] group-hover:text-white transition-colors"
               >
-                Inspect 3D Geometry <ChevronRight size={15} />
+                Inspect Tactical Radar <ChevronRight size={15} />
               </button>
             </div>
 
@@ -325,13 +325,13 @@ export function InspirationShowcase() {
             <div className="rounded-2xl border border-[#a5f3fc]/30 bg-[#ecfeff]/[0.07] p-7 flex flex-col justify-between min-h-[280px] backdrop-blur hover:bg-[#ecfeff]/[0.12] transition-colors">
               <div>
                 <span className="mono text-[28px] font-black text-[#67e8f9] opacity-60">03</span>
-                <h4 className="mt-3 text-[18px] font-bold text-white">Photorealistic Align</h4>
+                <h4 className="mt-3 text-[18px] font-bold text-white">Tactical Align</h4>
                 <p className="mt-2 text-[13px] text-zinc-300 leading-relaxed">
-                  Google 3D Tiles build city geometry and terrain elevations with photogrammetric precision in CesiumJS.
+                  CartoDB Dark Matter tiles render regional boundaries, streets, and coordinates with zero client lag.
                 </p>
               </div>
               <span className="mono inline-block text-[10px] font-semibold text-[#67e8f9] bg-[#164e63]/40 border border-[#67e8f9]/30 px-2.5 py-1 rounded-full w-fit mt-4">
-                Cesium WebGL
+                Leaflet 2D Core
               </span>
             </div>
 
@@ -339,13 +339,13 @@ export function InspirationShowcase() {
             <div className="rounded-2xl border border-[#fef08a]/30 bg-[#fefce8]/[0.07] p-7 flex flex-col justify-between min-h-[280px] backdrop-blur hover:bg-[#fefce8]/[0.12] transition-colors">
               <div>
                 <span className="mono text-[28px] font-black text-[#fde047] opacity-60">04</span>
-                <h4 className="mt-3 text-[18px] font-bold text-white">Volumetric Beams</h4>
+                <h4 className="mt-3 text-[18px] font-bold text-white">Sensor Pulse</h4>
                 <p className="mt-2 text-[13px] text-zinc-300 leading-relaxed">
-                  Hardware-accelerated rendering projects illuminated cylinders clamped directly to building rooftops.
+                  Ultra-responsive 2D markers highlight thermal hotspots, optical DOT stations, and weather wind vectors.
                 </p>
               </div>
               <span className="mono inline-block text-[10px] font-semibold text-[#fde047] bg-[#713f12]/40 border border-[#fde047]/30 px-2.5 py-1 rounded-full w-fit mt-4">
-                Cinematic Light Pass
+                Real-Time Telemetry
               </span>
             </div>
           </div>
@@ -375,16 +375,16 @@ export function InspirationShowcase() {
               Proven Performance
             </span>
             <h2 className="mt-2 text-[clamp(26px,3.2vw,40px)] font-bold text-white tracking-tight leading-tight">
-              Why Fire Agencies Choose the 3D Geospatial Engine
+              Why Fire Agencies Choose the Tactical Geospatial Engine
             </h2>
             <p className="mt-4 text-zinc-300 text-[15px] leading-relaxed">
-              When fires cross the wildland-urban interface, flat 2D maps lose critical slope and line-of-sight context. FireWatch renders physical heights, building shadows, and wind vectors in real time.
+              When fires cross the wildland-urban interface, incident command requires instant responsiveness without browser crashes. FireWatch provides zero-latency 2D radar mapping and live camera streams.
             </p>
 
             <div className="mt-10 grid grid-cols-2 gap-8 border-t border-white/10 pt-8">
               <div>
                 <span className="mono block text-[36px] font-extrabold text-[#60a5fa] leading-none">99.8%</span>
-                <span className="text-[13px] text-zinc-400 mt-1.5 block">Elevation clamping against 3D buildings</span>
+                <span className="text-[13px] text-zinc-400 mt-1.5 block">Coordinate precision on tactical radar</span>
               </div>
               <div>
                 <span className="mono block text-[36px] font-extrabold text-[#ff9d42] leading-none">2.5x</span>
@@ -535,22 +535,22 @@ export function InspirationShowcase() {
                 Ready to Transform Your Wildfire Operations?
               </h2>
               <p className="mt-4 text-[16px] text-blue-100 leading-relaxed">
-                Deploy the 3D Digital Twin Engine with live NASA satellite anomalies, Google Photorealistic 3D Tiles, and sub-minute telemetry today.
+                Deploy the Tactical Radar Engine with live NASA satellite anomalies, real-time DOT CCTV, and sub-minute telemetry today.
               </p>
               <div className="mt-8">
                 <button
                   onClick={() => navigate('/dashboard')}
                   className="rounded-full bg-white text-[#0066f5] px-8 py-3.5 text-[15px] font-bold shadow-xl transition-all hover:bg-slate-100 hover:scale-105 inline-flex items-center gap-2"
                 >
-                  Launch Full 3D Map Dashboard <ArrowRight size={18} />
+                  Launch Tactical Radar Dashboard <ArrowRight size={18} />
                 </button>
               </div>
             </div>
 
             <div className="rounded-2xl border border-white/30 bg-white/15 px-8 py-6 backdrop-blur-md text-white text-center">
               <span className="text-[36px] block">🔥</span>
-              <span className="mono text-[14px] font-extrabold uppercase tracking-wider block mt-1">3D DIGITAL TWIN</span>
-              <span className="text-[11px] text-blue-100 block">CesiumJS + Google 3D Tiles</span>
+              <span className="mono text-[14px] font-extrabold uppercase tracking-wider block mt-1">TACTICAL RADAR</span>
+              <span className="text-[11px] text-blue-100 block">Leaflet + Real-Time Telemetry</span>
             </div>
           </div>
         </div>
@@ -564,7 +564,7 @@ export function InspirationShowcase() {
               <span>🔥</span> FireWatch
             </div>
             <p className="mt-3 text-[13.5px] text-zinc-400 max-w-[340px] leading-relaxed">
-              Autonomous 3D digital twin system for near-real-time wildfire detection, thermal anomaly modeling, and rapid urban incident command.
+              Autonomous tactical radar system for near-real-time wildfire detection, thermal anomaly modeling, and rapid urban incident command.
             </p>
             <div className="mt-5 flex items-center gap-2 text-[12px] text-[#10b981] mono">
               <span className="h-2 w-2 rounded-full bg-[#10b981] shadow-[0_0_8px_#10b981]" /> All Telemetry Nodes Online
@@ -572,12 +572,12 @@ export function InspirationShowcase() {
           </div>
 
           <div>
-            <h5 className="text-[13px] font-bold text-white uppercase tracking-wider mb-4">3D Engine</h5>
+            <h5 className="text-[13px] font-bold text-white uppercase tracking-wider mb-4">Tactical Engine</h5>
             <ul className="space-y-2.5 text-[13px]">
-              <li><button onClick={() => navigate('/dashboard')} className="hover:text-white transition-colors">Launch 3D Map</button></li>
-              <li><a href="#pipeline" className="hover:text-white transition-colors">CesiumJS WebGL Core</a></li>
-              <li><a href="#solutions" className="hover:text-white transition-colors">Google 3D Tiles</a></li>
-              <li><a href="#solutions" className="hover:text-white transition-colors">Volumetric Beams</a></li>
+              <li><button onClick={() => navigate('/dashboard')} className="hover:text-white transition-colors">Launch Tactical Map</button></li>
+              <li><a href="#pipeline" className="hover:text-white transition-colors">Leaflet 2D Core</a></li>
+              <li><a href="#solutions" className="hover:text-white transition-colors">CartoDB Dark Matter</a></li>
+              <li><a href="#solutions" className="hover:text-white transition-colors">Surveillance Matrix</a></li>
             </ul>
           </div>
 
@@ -603,7 +603,7 @@ export function InspirationShowcase() {
         </div>
 
         <div className="mx-auto max-w-[1240px] border-t border-white/10 mt-12 pt-8 flex flex-wrap items-center justify-between gap-4 text-[12px] mono text-zinc-500">
-          <div>© 2026 FireWatch Geospatial Engine. Built with CesiumJS & Google Photorealistic 3D Tiles.</div>
+          <div>© 2026 FireWatch Geospatial Engine. Built with Leaflet & Real-Time Open Data.</div>
           <div>Benchmark Anchor: San Francisco 37.7749° N · 122.4194° W</div>
         </div>
       </footer>

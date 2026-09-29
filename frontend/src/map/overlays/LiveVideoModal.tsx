@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { looksLikePlaceholder } from './cameraFrameProbe'
 import {
   AlertTriangle,
   Camera,
@@ -39,11 +40,12 @@ export default function LiveVideoModal({
   const [zoom, setZoom] = useState<number>(1)
 
   // Real-time CCTV frame poller state
-  const [frameTimestamp, setFrameTimestamp] = useState<number>(Date.now())
+  const [frameTimestamp, setFrameTimestamp] = useState<number>(() => Date.now())
   const [frameCount, setFrameCount] = useState<number>(1)
   const [latencyMs, setLatencyMs] = useState<number>(36)
   const [isPulling, setIsPulling] = useState<boolean>(false)
   const [cctvError, setCctvError] = useState<boolean>(false)
+  const [feedUnavailable, setFeedUnavailable] = useState<boolean>(false)
 
   // Real-time camera local weather
   const [weather, setWeather] = useState<RealtimeWeather | null>(null)
@@ -55,6 +57,7 @@ export default function LiveVideoModal({
     if (camera) {
       setFrameCount(1)
       setCctvError(false)
+      setFeedUnavailable(false)
       // Fetch live weather at this camera location
       fetchLiveWeather(camera.lat, camera.lon)
         .then(setWeather)
@@ -80,16 +83,26 @@ export default function LiveVideoModal({
 
       const base = baseCctvUrl.split('?')[0]
       const img = new Image()
+      img.crossOrigin = 'anonymous'
       img.src = `${base}?_t=${Date.now()}`
       img.onload = () => {
+        setIsPulling(false)
+        // DOT networks answer 200 with a static "Temporarily Unavailable"
+        // placeholder, so a successful load is not a live frame on its own.
+        if (looksLikePlaceholder(img)) {
+          setFeedUnavailable(true)
+          setCctvError(true)
+          return
+        }
+        setFeedUnavailable(false)
         setLatencyMs(Math.round(performance.now() - t0))
         setFrameTimestamp(Date.now())
         setFrameCount(c => c + 1)
-        setIsPulling(false)
         setCctvError(false)
       }
       img.onerror = () => {
         setIsPulling(false)
+        setFeedUnavailable(false)
         setCctvError(true)
       }
     }, 2000)
@@ -260,7 +273,7 @@ export default function LiveVideoModal({
               key={`${cctvUrl}-${frameTimestamp}`}
               src={cctvUrl.includes('?') ? cctvUrl : `${cctvUrl}?_t=${frameTimestamp}`}
               alt={camera.name}
-              className="max-h-full max-w-full object-contain transition-all duration-300"
+              className={`max-h-full max-w-full object-contain transition-all duration-300 ${cctvError ? 'opacity-0' : 'opacity-100'}`}
               style={{
                 filter: filterStyles[filter],
                 transform: `scale(${zoom})`,
@@ -269,11 +282,15 @@ export default function LiveVideoModal({
             />
 
             {cctvError && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-amber-300 gap-2 p-4 text-center">
-                <AlertTriangle size={28} />
-                <div className="font-bold text-sm">Station Feed Buffering</div>
-                <div className="text-xs text-zinc-400 max-w-xs">
-                  Re-establishing direct telemetry link with California DOT optical sensor…
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/90 p-4 text-center">
+                <AlertTriangle size={28} className={feedUnavailable ? 'text-zinc-500' : 'text-amber-300'} />
+                <div className={`text-sm font-bold ${feedUnavailable ? 'text-zinc-300' : 'text-amber-300'}`}>
+                  {feedUnavailable ? 'Camera Offline' : 'Station Feed Buffering'}
+                </div>
+                <div className="max-w-xs text-xs text-zinc-400">
+                  {feedUnavailable
+                    ? 'California DOT reports this optical sensor as temporarily unavailable. Retrying every 2s.'
+                    : 'Re-establishing direct telemetry link with California DOT optical sensor…'}
                 </div>
               </div>
             )}
@@ -381,7 +398,7 @@ export default function LiveVideoModal({
                 }}
               >
                 <Eye size={13} />
-                <span>Fly to Location on 3D Map</span>
+                <span>Fly to Location on Map</span>
               </button>
             )}
             <button

@@ -163,7 +163,7 @@ export default function Hero() {
         <div className="max-w-[560px]">
           <div className="flex items-center gap-2.5" data-hero>
             <span className="fw-dot fw-dot--ok" />
-            <span className="lbl">NASA FIRMS + Google Photorealistic 3D Tiles Engine</span>
+            <span className="lbl">NASA FIRMS + Live Optical CCTV Radar Engine</span>
           </div>
 
           <h1 className="mt-5 text-[clamp(36px,4.4vw,58px)] font-medium leading-[1.04] tracking-[-0.035em] [text-shadow:0_2px_30px_rgba(0,0,0,0.6)]">
@@ -171,7 +171,7 @@ export default function Hero() {
               Real-Time Telemetry.
             </span>
             <span className="block" data-hero-line>
-              3D Digital Twin.
+              Tactical Radar Twin.
             </span>
             <span className="block text-[#ff9d42]" data-hero-line>
               Zero Latency Defense.
@@ -179,8 +179,7 @@ export default function Hero() {
           </h1>
 
           <p className="fw-lead mt-6 max-w-[540px] [text-shadow:0_1px_16px_rgba(0,0,0,0.7)]" data-hero>
-            FireWatch fuses live orbital NASA FIRMS radiometry with Google's Photorealistic 3D mesh
-            to project volumetric fire beams directly into tactical incident command centers.
+            FireWatch fuses live orbital NASA FIRMS radiometry with real-time Caltrans traffic CCTV and weather telemetry directly into tactical incident command centers.
           </p>
 
           <div className="mt-8 flex flex-wrap items-center gap-3" data-hero>
@@ -188,7 +187,7 @@ export default function Hero() {
               onClick={() => navigate('/dashboard')}
               className="fw-btn fw-btn--amber flex items-center gap-2 !px-6 !py-3.5 text-[14px]"
             >
-              <span>Launch Full 3D Map</span>
+              <span>Launch Tactical Map</span>
               <ArrowRight size={16} />
             </button>
             <a

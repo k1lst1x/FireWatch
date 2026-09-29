@@ -4,6 +4,8 @@ import {
 } from 'lucide-react'
 import { CRIT_COLOR, imageSrc, type AnalyzeInput, type Incident, type NearbyCamera, type PipelineResult } from '../../lib/api'
 import { getNearbyLiveCameras, type LiveCameraFeed, type CameraCategory } from '../cameraDirectory'
+import CameraFrame from './CameraFrame'
+import { type FrameStatus } from './cameraFrameProbe'
 
 const PRESETS: { label: string; lat: number; lon: number }[] = [
   { label: 'San Francisco Downtown', lat: 37.7749, lon: -122.4194 },
@@ -51,6 +53,7 @@ export function AnalysisBar({
   const [cameraUpdatedAt, setCameraUpdatedAt] = useState<number | null>(null)
   const [cameraPoll, setCameraPoll] = useState(0)
   const [liveClock, setLiveClock] = useState(() => new Date().toLocaleTimeString('en-US', { hour12: false }))
+  const [feedStatus, setFeedStatus] = useState<FrameStatus>('loading')
 
   // Synchronize when a camera is chosen on the map
   useEffect(() => {
@@ -215,21 +218,24 @@ export function AnalysisBar({
                 title="Click to open video popup window"
               >
                 <div className="relative aspect-video w-full bg-zinc-950 overflow-hidden">
-                  <img
+                  <CameraFrame
                     src={activeFeed.live_cctv_url || activeFeed.image_url}
                     alt={activeFeed.name}
-                    className="h-full w-full object-cover"
+                    onStatusChange={setFeedStatus}
                   />
 
                   {/* Hover Prompt */}
-                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                    <span className="flex items-center gap-1.5 rounded-full bg-[#ff5a00] px-3 py-1.5 text-[11px] font-bold text-white shadow-xl">
-                      <Maximize2 size={13} /> Open Video Window
-                    </span>
-                  </div>
+                  {feedStatus === 'live' && (
+                    <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                      <span className="flex items-center gap-1.5 rounded-full bg-[#ff5a00] px-3 py-1.5 text-[11px] font-bold text-white shadow-xl">
+                        <Maximize2 size={13} /> Open Video Window
+                      </span>
+                    </div>
+                  )}
 
-                  {/* Optical Reticle & Surveillance HUD Overlay */}
-                  <div className="pointer-events-none absolute inset-0">
+                  {/* Optical Reticle & Surveillance HUD Overlay. Hidden while the
+                      feed is down so the offline card reads cleanly. */}
+                  <div className={`pointer-events-none absolute inset-0 transition-opacity ${feedStatus === 'live' ? 'opacity-100' : 'opacity-0'}`}>
                     {/* Reticles */}
                     <div className="absolute top-2 left-2 h-3 w-3 border-t-2 border-l-2 border-emerald-400/80" />
                     <div className="absolute top-2 right-2 h-3 w-3 border-t-2 border-r-2 border-emerald-400/80" />
@@ -292,9 +298,10 @@ export function AnalysisBar({
               {activeFeed && onOpenVideoModal && (
                 <button
                   type="button"
-                  className="flex items-center gap-1.5 rounded-lg border border-[#ff5a00]/40 bg-[#ff5a00]/20 px-2.5 py-1.5 text-[11px] font-semibold text-[#ff8c42] hover:bg-[#ff5a00] hover:text-white transition-all shadow-sm"
+                  disabled={feedStatus !== 'live'}
+                  className="flex items-center gap-1.5 rounded-lg border border-[#ff5a00]/40 bg-[#ff5a00]/20 px-2.5 py-1.5 text-[11px] font-semibold text-[#ff8c42] hover:bg-[#ff5a00] hover:text-white transition-all shadow-sm disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/5 disabled:text-zinc-500 disabled:hover:bg-white/5 disabled:hover:text-zinc-500"
                   onClick={() => onOpenVideoModal(activeFeed)}
-                  title="Open live video in popup window"
+                  title={feedStatus === 'live' ? 'Open live video in popup window' : 'Feed unavailable upstream'}
                 >
                   <Maximize2 size={13} />
                   <span>Popup Video</span>
@@ -306,10 +313,10 @@ export function AnalysisBar({
                   type="button"
                   className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-[11px] text-zinc-300 hover:text-white hover:bg-white/10 transition-colors"
                   onClick={() => onSelectCamera(activeFeed)}
-                  title="Fly to Camera Station on 3D Map"
+                  title="Focus Camera Station on Map"
                 >
                   <Eye size={13} className="text-emerald-400" />
-                  <span>Fly Map</span>
+                  <span>Focus Map</span>
                 </button>
               )}
             </div>
@@ -591,15 +598,8 @@ export function CameraStationDetail({
   onRunAnalysis?: (camera: LiveCameraFeed) => void
   onClose: () => void
 }) {
-  const [frameTimestamp, setFrameTimestamp] = useState(Date.now())
-  const imgUrl = camera.live_cctv_url
-    ? `${camera.live_cctv_url}?_t=${frameTimestamp}`
-    : (camera.image_url || '')
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setFrameTimestamp(Date.now()), 5000)
-    return () => window.clearInterval(timer)
-  }, [])
+  const [frameStatus, setFrameStatus] = useState<FrameStatus>('loading')
+  const isLive = frameStatus === 'live'
 
   return (
     <div className="fwmap-card flex w-[330px] flex-col overflow-hidden border border-white/15 bg-zinc-950/95 shadow-2xl backdrop-blur-md animate-in fade-in duration-200">
@@ -611,7 +611,9 @@ export function CameraStationDetail({
           <div className="min-w-0">
             <h4 className="truncate text-[13px] font-bold text-white">{camera.name}</h4>
             <div className="fwmap-mono text-[10px] text-zinc-400 flex items-center gap-1.5">
-              <span className="text-emerald-400 font-semibold">ONLINE</span>
+              <span className={`font-semibold ${isLive ? 'text-emerald-400' : 'text-zinc-500'}`}>
+                {frameStatus === 'loading' ? 'CONNECTING' : isLive ? 'ONLINE' : 'NO SIGNAL'}
+              </span>
               <span>•</span>
               <span>{(camera.distance_km ?? 0).toFixed(1)} km away</span>
             </div>
@@ -629,18 +631,30 @@ export function CameraStationDetail({
       <div className="p-3">
         {/* Live Camera Viewport */}
         <div
-          className="relative aspect-video w-full overflow-hidden rounded-lg border border-white/15 bg-black cursor-pointer group shadow"
-          onClick={() => onOpenVideoModal && onOpenVideoModal(camera)}
-          title="Click to popup large live video window"
+          className={`relative aspect-video w-full overflow-hidden rounded-lg border border-white/15 bg-black shadow group ${
+            isLive ? 'cursor-pointer' : 'cursor-default'
+          }`}
+          onClick={() => isLive && onOpenVideoModal && onOpenVideoModal(camera)}
+          title={isLive ? 'Click to popup large live video window' : 'Feed unavailable upstream'}
         >
-          <img src={imgUrl} alt={camera.name} className="h-full w-full object-cover" />
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
-            <span className="flex items-center gap-1.5 rounded-full bg-[#ff5a00] px-3 py-1.5 text-[11px] font-bold text-white shadow-xl">
-              <Maximize2 size={13} /> Popup Video
-            </span>
-          </div>
-          <div className="absolute top-2 left-2 flex items-center gap-1 rounded bg-black/75 px-1.5 py-0.5 text-[9px] font-mono text-emerald-400 border border-white/10">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <CameraFrame
+            src={camera.live_cctv_url || camera.image_url}
+            alt={camera.name}
+            onStatusChange={setFrameStatus}
+          />
+          {isLive && (
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+              <span className="flex items-center gap-1.5 rounded-full bg-[#ff5a00] px-3 py-1.5 text-[11px] font-bold text-white shadow-xl">
+                <Maximize2 size={13} /> Popup Video
+              </span>
+            </div>
+          )}
+          <div
+            className={`absolute top-2 left-2 flex items-center gap-1 rounded border border-white/10 bg-black/75 px-1.5 py-0.5 font-mono text-[9px] ${
+              isLive ? 'text-emerald-400' : 'text-zinc-500'
+            }`}
+          >
+            <span className={`h-1.5 w-1.5 rounded-full ${isLive ? 'animate-pulse bg-emerald-400' : 'bg-zinc-600'}`} />
             <span>DOT CCTV</span>
           </div>
         </div>
@@ -660,7 +674,9 @@ export function CameraStationDetail({
       <div className="border-t border-[var(--line)] p-2.5 flex gap-2">
         {onOpenVideoModal && (
           <button
-            className="fwmap-btn fwmap-btn--ember flex-1 !text-xs !py-1.5"
+            className="fwmap-btn fwmap-btn--ember flex-1 !text-xs !py-1.5 disabled:cursor-not-allowed disabled:opacity-40"
+            disabled={!isLive}
+            title={isLive ? 'Open live video in popup window' : 'Feed unavailable upstream'}
             onClick={() => onOpenVideoModal(camera)}
           >
             <Maximize2 size={13} /> Popup Video

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Home, ScrollText, Settings as SettingsIcon } from 'lucide-react'
+import { Home, Network, ScrollText, Settings as SettingsIcon } from 'lucide-react'
 import { BayhawkProvider, useBayhawk } from '../context/BayhawkContext'
 import CityMap from '../map/CityMap'
 import { DEMO_INCIDENTS } from '../map/demoIncidents'
@@ -8,11 +8,12 @@ import { IncidentList, StatusStrip, TelemetryPanel } from '../map/overlays/Panel
 import { AnalysisBar, IncidentDetail, CameraStationDetail } from '../map/overlays/Inspector'
 import FlameMark from '../map/overlays/FlameMark'
 import type { BasemapTier } from '../map/config'
-import { api, type AgentTraceResponse, type AnalyzeInput, type CameraDirectoryResponse } from '../lib/api'
+import { api, type AgentTraceResponse, type AnalyzeInput, type CameraDirectoryResponse, type FederationStatus } from '../lib/api'
 import { CALIFORNIA_REALTIME_CAMERAS, calculateDistanceKm, type LiveCameraFeed } from '../map/cameraDirectory'
 import LiveVideoModal from '../map/overlays/LiveVideoModal'
 import LiveWeatherWidget from '../map/overlays/LiveWeatherWidget'
 import AgentTracePanel from '../map/overlays/AgentTracePanel'
+import FederationPanel from '../map/overlays/FederationPanel'
 import {
   fetchLiveWeather,
   fetchNasaHotspots,
@@ -39,6 +40,11 @@ function Console() {
   const [agentTrace, setAgentTrace] = useState<AgentTraceResponse | null>(null)
   const [traceLoading, setTraceLoading] = useState(false)
   const [traceError, setTraceError] = useState<string | null>(null)
+  const [federationOpen, setFederationOpen] = useState(false)
+  const [federationStatus, setFederationStatus] = useState<FederationStatus | null>(null)
+  const [federationLoading, setFederationLoading] = useState(false)
+  const [federationRunning, setFederationRunning] = useState(false)
+  const [federationError, setFederationError] = useState<string | null>(null)
 
   // Real-time Weather API & NASA Satellite State
   const [weather, setWeather] = useState<RealtimeWeather | null>(null)
@@ -115,6 +121,30 @@ function Console() {
       setTraceError((err as Error).message)
     } finally {
       setTraceLoading(false)
+    }
+  }, [])
+
+  const loadFederationStatus = useCallback(async () => {
+    setFederationLoading(true)
+    setFederationError(null)
+    try {
+      setFederationStatus(await api.federationStatus())
+    } catch (err) {
+      setFederationError((err as Error).message)
+    } finally {
+      setFederationLoading(false)
+    }
+  }, [])
+
+  const runFederationRound = useCallback(async () => {
+    setFederationRunning(true)
+    setFederationError(null)
+    try {
+      setFederationStatus(await api.runFederationRound())
+    } catch (err) {
+      setFederationError((err as Error).message)
+    } finally {
+      setFederationRunning(false)
     }
   }, [])
 
@@ -241,12 +271,12 @@ function Console() {
           {booted && (
             <span className="fwmap-mono hidden sm:inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-950/40 px-2.5 py-0.5 text-[10px] tracking-wide text-emerald-300 backdrop-blur">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              SAN FRANCISCO 3D RENDERED
+              TACTICAL 2D RADAR ACTIVE
             </span>
           )}
         </div>
 
-        {/* Center Camera Matrix Controls focused strictly on San Francisco */}
+        {/* Center Camera Matrix Controls focused strictly on California / SF */}
         <div className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-white/10 bg-black/70 p-1 backdrop-blur-md shadow-2xl">
           <button
             className={`rounded-full px-3 py-1 text-[11px] font-medium transition-all ${
@@ -255,9 +285,9 @@ function Console() {
                 : 'text-zinc-400 hover:text-white'
             }`}
             onClick={() => setCameraMode('isometric')}
-            title="Benchmark Oblique View (SF Downtown Anchor)"
+            title="San Francisco Downtown Core"
           >
-            Isometric 3D
+            Downtown SF
           </button>
           <button
             className={`rounded-full px-3 py-1 text-[11px] font-medium transition-all ${
@@ -266,9 +296,9 @@ function Console() {
                 : 'text-zinc-400 hover:text-white'
             }`}
             onClick={() => setCameraMode('topdown')}
-            title="Nadir Top-Down Satellite View"
+            title="Bay Area Regional View"
           >
-            Nadir 90°
+            Bay Area
           </button>
           <button
             className={`rounded-full px-3 py-1 text-[11px] font-medium transition-all ${
@@ -277,9 +307,9 @@ function Console() {
                 : 'text-zinc-400 hover:text-white'
             }`}
             onClick={() => setCameraMode('cinematic')}
-            title="Twin Peaks Oblique Twilight Horizon"
+            title="California Statewide View"
           >
-            Cinematic
+            California
           </button>
         </div>
 
@@ -293,10 +323,17 @@ function Console() {
           </button>
           <button
             className="fwmap-btn fwmap-btn--ghost !px-3 !py-1.5 text-[11px]"
-            onClick={() => { setLogsOpen(true); void loadAgentTrace() }}
+            onClick={() => { setFederationOpen(false); setLogsOpen(true); void loadAgentTrace() }}
             title="Show backend agent trace"
           >
             <ScrollText size={13} /> Logs
+          </button>
+          <button
+            className="fwmap-btn fwmap-btn--ghost !px-3 !py-1.5 text-[11px]"
+            onClick={() => { setLogsOpen(false); setFederationOpen(true); void loadFederationStatus() }}
+            title="Show live Flower federation views"
+          >
+            <Network size={13} /> Federation views
           </button>
           <button
             className="fwmap-btn fwmap-btn--ghost !px-3 !py-2"
@@ -340,6 +377,18 @@ function Console() {
           error={traceError}
           onClose={() => setLogsOpen(false)}
           onRefresh={() => void loadAgentTrace()}
+        />
+      )}
+
+      {federationOpen && (
+        <FederationPanel
+          status={federationStatus}
+          loading={federationLoading}
+          running={federationRunning}
+          error={federationError}
+          onClose={() => setFederationOpen(false)}
+          onRefresh={() => void loadFederationStatus()}
+          onRunRound={() => void runFederationRound()}
         />
       )}
 
@@ -389,7 +438,7 @@ function Console() {
             <span>200+ MW</span>
           </div>
           <div className="mt-2 text-[10px] text-zinc-400 leading-tight">
-            Volumetric beams clamped to 3D San Francisco buildings.
+            Real-time thermal anomalies & optical surveillance network.
           </div>
         </div>
       )}
@@ -436,7 +485,7 @@ function Console() {
         />
       )}
 
-      {/* boot veil, so the city fades in rather than popping */}
+      {/* boot veil, so the map fades in smoothly */}
       <div className={`fwmap-boot ${booted ? 'is-done' : ''}`}>
         <div className="w-[300px]">
           <div className="flex items-center gap-3">
@@ -448,12 +497,12 @@ function Console() {
               className="h-full bg-gradient-to-r from-[#ffb347] via-[#ff6b1f] to-[#ff3b2f]"
               style={{
                 width: booted ? '100%' : '65%',
-                transition: 'width 2.4s cubic-bezier(0.2, 0.8, 0.2, 1)',
+                transition: 'width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)',
               }}
             />
           </div>
           <div className="fwmap-mono mt-3 flex justify-between text-[10px] uppercase tracking-[0.18em] text-[var(--ash-3)]">
-            <span>Building San Francisco</span>
+            <span>Initializing Tactical Radar</span>
             <span>37.77° N</span>
           </div>
         </div>
