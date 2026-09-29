@@ -8,7 +8,7 @@ import { IncidentList, StatusStrip, TelemetryPanel } from '../map/overlays/Panel
 import { AnalysisBar, IncidentDetail, CameraStationDetail } from '../map/overlays/Inspector'
 import FlameMark from '../map/overlays/FlameMark'
 import type { BasemapTier } from '../map/config'
-import { api, type AgentTraceResponse, type AnalyzeInput, type CameraDirectoryResponse } from '../lib/api'
+import { api, type AgentTraceResponse, type AnalyzeInput, type CameraDirectoryResponse, type FederationStatus } from '../lib/api'
 import { CALIFORNIA_REALTIME_CAMERAS, calculateDistanceKm, type LiveCameraFeed } from '../map/cameraDirectory'
 import LiveVideoModal from '../map/overlays/LiveVideoModal'
 import LiveWeatherWidget from '../map/overlays/LiveWeatherWidget'
@@ -37,10 +37,14 @@ function Console() {
   const [cameraMode, setCameraMode] = useState<'isometric' | 'topdown' | 'cinematic'>('isometric')
   const [hudVisible, setHudVisible] = useState(true)
   const [logsOpen, setLogsOpen] = useState(false)
-  const [fedOpen, setFedOpen] = useState(false)
   const [agentTrace, setAgentTrace] = useState<AgentTraceResponse | null>(null)
   const [traceLoading, setTraceLoading] = useState(false)
   const [traceError, setTraceError] = useState<string | null>(null)
+  const [federationOpen, setFederationOpen] = useState(false)
+  const [federationStatus, setFederationStatus] = useState<FederationStatus | null>(null)
+  const [federationLoading, setFederationLoading] = useState(false)
+  const [federationRunning, setFederationRunning] = useState(false)
+  const [federationError, setFederationError] = useState<string | null>(null)
 
   // Real-time Weather API & NASA Satellite State
   const [weather, setWeather] = useState<RealtimeWeather | null>(null)
@@ -117,6 +121,30 @@ function Console() {
       setTraceError((err as Error).message)
     } finally {
       setTraceLoading(false)
+    }
+  }, [])
+
+  const loadFederationStatus = useCallback(async () => {
+    setFederationLoading(true)
+    setFederationError(null)
+    try {
+      setFederationStatus(await api.federationStatus())
+    } catch (err) {
+      setFederationError((err as Error).message)
+    } finally {
+      setFederationLoading(false)
+    }
+  }, [])
+
+  const runFederationRound = useCallback(async () => {
+    setFederationRunning(true)
+    setFederationError(null)
+    try {
+      setFederationStatus(await api.runFederationRound())
+    } catch (err) {
+      setFederationError((err as Error).message)
+    } finally {
+      setFederationRunning(false)
     }
   }, [])
 
@@ -295,14 +323,14 @@ function Console() {
           </button>
           <button
             className="fwmap-btn fwmap-btn--ghost !px-3 !py-1.5 text-[11px]"
-            onClick={() => { setFedOpen(false); setLogsOpen(true); void loadAgentTrace() }}
+            onClick={() => { setFederationOpen(false); setLogsOpen(true); void loadAgentTrace() }}
             title="Show backend agent trace"
           >
             <ScrollText size={13} /> Logs
           </button>
           <button
             className="fwmap-btn fwmap-btn--ghost !px-3 !py-1.5 text-[11px]"
-            onClick={() => { setLogsOpen(false); setFedOpen(true) }}
+            onClick={() => { setLogsOpen(false); setFederationOpen(true); void loadFederationStatus() }}
             title="Flower federated learning"
           >
             <Network size={13} /> Flower
@@ -352,7 +380,17 @@ function Console() {
         />
       )}
 
-      {fedOpen && <FederationPanel onClose={() => setFedOpen(false)} />}
+      {federationOpen && (
+        <FederationPanel
+          status={federationStatus}
+          loading={federationLoading}
+          running={federationRunning}
+          error={federationError}
+          onClose={() => setFederationOpen(false)}
+          onRefresh={() => void loadFederationStatus()}
+          onRunRound={() => void runFederationRound()}
+        />
+      )}
 
       {/* right rail: real-time live weather widget + incident detail */}
       {hudVisible && (

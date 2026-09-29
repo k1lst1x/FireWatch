@@ -18,12 +18,29 @@
   overflow: hidden;
 }
 
-/* 2D Leaflet Container */
+/* 2D Leaflet Container.
+   `isolation` traps Leaflet's internal panes/controls (z-index 400-1000) inside
+   the map's own stacking context, so markers, tooltips and map controls can
+   never paint over the HUD panels layered above it. */
 .fwmap .leaflet-container {
   width: 100%;
   height: 100%;
-  background: var(--night) !important;
+  /* OSM land tone, so the street basemap loads in without a dark flash */
+  background: #e8e4dd !important;
   font-family: inherit;
+  z-index: 0;
+  isolation: isolate;
+}
+
+/* The map host sits underneath every HUD overlay (which use z-20). */
+.fwmap > [data-map-ready] {
+  z-index: 0;
+}
+
+/* Map controls stay below the HUD but above map tiles/markers. */
+.fwmap .leaflet-control-container {
+  position: relative;
+  z-index: 10;
 }
 
 /* Custom dark zoom controls positioned bottom-right */
@@ -336,4 +353,53 @@
 
 @media (prefers-reduced-motion: reduce) {
   .fwmap *, .fwmap *::before { animation-duration: 0.001s !important; transition-duration: 0.001s !important; }
+}
+
+/* Raw light basemap tiles (OSM fallback) inverted into the tactical night palette */
+.fwmap .leaflet-tile-pane .fw-tiles-invert {
+  filter: invert(1) hue-rotate(180deg) brightness(0.82) contrast(1.05) saturate(0.6);
+}
+
+/* Compact attribution required by OpenStreetMap / Esri terms */
+.fwmap .leaflet-control-attribution {
+  background: rgba(8, 10, 16, 0.6) !important;
+  color: rgba(244, 237, 228, 0.45) !important;
+  font-size: 9px !important;
+  padding: 1px 6px !important;
+  border-radius: 6px 0 0 0;
+  backdrop-filter: blur(8px);
+}
+
+.fwmap .leaflet-control-attribution a {
+  color: rgba(244, 237, 228, 0.65) !important;
+}
+
+/* Marker tooltips in the tactical palette (Leaflet ships a white default) */
+.fwmap .leaflet-tooltip {
+  background: rgba(10, 12, 18, 0.92) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6) !important;
+  color: var(--ash) !important;
+  padding: 6px 9px !important;
+  backdrop-filter: blur(10px);
+}
+
+.fwmap .leaflet-tooltip-top::before {
+  border-top-color: rgba(10, 12, 18, 0.92) !important;
+}
+.fwmap .leaflet-tooltip-bottom::before {
+  border-bottom-color: rgba(10, 12, 18, 0.92) !important;
+}
+.fwmap .leaflet-tooltip-left::before {
+  border-left-color: rgba(10, 12, 18, 0.92) !important;
+}
+.fwmap .leaflet-tooltip-right::before {
+  border-right-color: rgba(10, 12, 18, 0.92) !important;
+}
+
+/* Extra separation so markers stay legible over the light street basemap */
+.fw-incident-marker .fw-marker-core,
+.fw-camera-icon {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45));
 }

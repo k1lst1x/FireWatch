@@ -77,31 +77,6 @@ export interface CameraDirectoryResponse {
   cameras: Array<Omit<NearbyCamera, 'distance_km'>>
 }
 
-export interface FederationStation {
-  id: string
-  name: string
-  online: boolean
-  labels: number
-  fp_rate: number | null
-  miss_rate?: number | null
-  params: { camera_weight: number; fusion_threshold: number; thermal_only_threshold: number }
-}
-
-export interface FederationRound {
-  round: number
-  fp_rate: number
-  miss_rate?: number
-  per_station: Record<string, number>
-}
-
-export interface FederationStatus {
-  round: number
-  running: boolean
-  stations: FederationStation[]
-  global_params: FederationStation['params']
-  history: FederationRound[]
-}
-
 export interface AgentTraceEntry {
   id: string
   name: string
@@ -116,6 +91,40 @@ export interface AgentTraceResponse {
   event_id: string | null
   created_at: string | null
   agents: AgentTraceEntry[]
+}
+
+export type FederationStationId = 'north_bay' | 'sierra' | 'socal'
+
+export interface FederationStation {
+  id: FederationStationId
+  name: string
+  online: boolean
+  labels: number
+  dispatcher_labels: number
+  approvals: number
+  rejections: number
+  fp_rate: number | null
+  miss_rate: number | null
+  params: {
+    camera_weight: number
+    fusion_threshold: number
+    thermal_only_threshold: number
+  }
+}
+
+export interface FederationRound {
+  round: number
+  fp_rate: number
+  miss_rate: number
+  per_station: Record<FederationStationId, number>
+}
+
+export interface FederationStatus {
+  round: number
+  running: boolean
+  stations: FederationStation[]
+  global_params: FederationStation['params']
+  history: FederationRound[]
 }
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
@@ -138,6 +147,8 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   status: () => call<PipelineStatus>('/ai/status'),
   agentTrace: () => call<AgentTraceResponse>('/ai/agent-trace'),
+  federationStatus: () => call<FederationStatus>('/federation/status'),
+  runFederationRound: (rounds = 1) => call<FederationStatus>('/federation/round', { method: 'POST', body: JSON.stringify({ rounds }) }),
   incidents: () => call<Incident[]>('/ai/incidents'),
   demoImages: () => call<string[]>('/ai/demo-images'),
   cameraDirectory: () => call<CameraDirectoryResponse>('/ai/cameras'),
@@ -149,9 +160,6 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ decision, note }),
     }),
-  federationStatus: () => call<FederationStatus>('/federation/status'),
-  federationRound: (rounds = 1) =>
-    call<FederationStatus>('/federation/round', { method: 'POST', body: JSON.stringify({ rounds }) }),
   telemetryWeather: (lat = 37.7749, lon = -122.4194) =>
     call<{ latitude: number; longitude: number; current: any; spread_risk: number; source: string; timestamp: string }>(
       `/ai/telemetry/live-weather?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`,

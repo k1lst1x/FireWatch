@@ -1,44 +1,22 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { Lock, Play } from 'lucide-react'
 import { Kicker, Split } from './bits'
-import { api, type FederationStatus } from '../../lib/api'
+import { api, type FederationRound, type FederationStationId, type FederationStatus } from '../../lib/api'
 
 gsap.registerPlugin(ScrollTrigger)
 
-type StationId = 'north_bay' | 'sierra' | 'socal'
-interface Station {
-  id: StationId
-  name: string
-  labels: number
-  fp_rate: number
-  params: { camera_weight: number; fusion_threshold: number; thermal_only_threshold: number }
-}
-interface Round { round: number; fp_rate: number; miss_rate?: number; per_station: Record<StationId, number> }
-
-// Mirrors the /api/federation/status shape from the frontend brief (illustrative values).
-const INITIAL_STATIONS: Station[] = [
-  { id: 'north_bay', name: 'North Bay', labels: 14, fp_rate: 0.12, params: { camera_weight: 0.58, fusion_threshold: 0.46, thermal_only_threshold: 0.62 } },
-  { id: 'sierra', name: 'Sierra', labels: 11, fp_rate: 0.11, params: { camera_weight: 0.55, fusion_threshold: 0.48, thermal_only_threshold: 0.64 } },
-  { id: 'socal', name: 'SoCal', labels: 17, fp_rate: 0.13, params: { camera_weight: 0.57, fusion_threshold: 0.47, thermal_only_threshold: 0.63 } },
-]
-const INITIAL_HISTORY: Round[] = [
-  { round: 0, fp_rate: 0.42, per_station: { north_bay: 0.45, sierra: 0.4, socal: 0.41 } },
-  { round: 1, fp_rate: 0.27, per_station: { north_bay: 0.3, sierra: 0.25, socal: 0.26 } },
-  { round: 2, fp_rate: 0.18, per_station: { north_bay: 0.2, sierra: 0.16, socal: 0.18 } },
-  { round: 3, fp_rate: 0.12, per_station: { north_bay: 0.12, sierra: 0.11, socal: 0.13 } },
-]
-
-const COLORS: Record<StationId, string> = { north_bay: '#ffc46b', sierra: '#ff8a3c', socal: '#ff4f5e' }
-const pct = (v: number) => `${Math.round(v * 100)}%`
+const COLORS: Record<FederationStationId, string> = { north_bay: '#ffc46b', sierra: '#ff8a3c', socal: '#ff4f5e' }
+const pct = (v?: number | null) => v == null ? '—' : `${Math.round(v * 100)}%`
 
 const W = 820, H = 360, PAD = { l: 44, r: 64, t: 20, b: 36 }
 const Y_MAX = 0.5
 
-function Chart({ history, drawKey }: { history: Round[]; drawKey: number }) {
+function Chart({ history, drawKey }: { history: FederationRound[]; drawKey: number }) {
   const svgRef = useRef<SVGSVGElement>(null)
-  const maxRound = Math.max(5, history[history.length - 1].round)
+  const last = history[history.length - 1]
+  const maxRound = Math.max(1, last?.round ?? 1)
   const x = (r: number) => PAD.l + (r / maxRound) * (W - PAD.l - PAD.r)
   const y = (v: number) => PAD.t + (1 - v / Y_MAX) * (H - PAD.t - PAD.b)
   const path = (vals: number[]) => {
@@ -50,9 +28,8 @@ function Chart({ history, drawKey }: { history: Round[]; drawKey: number }) {
       return `${d} C${cx},${qy} ${cx},${py} ${px},${py}`
     }, '')
   }
-  const last = history[history.length - 1]
-
   useEffect(() => {
+    if (!history.length) return
     const svg = svgRef.current
     if (!svg) return
     const lines = svg.querySelectorAll<SVGPathElement>('[data-line]')
@@ -71,6 +48,10 @@ function Chart({ history, drawKey }: { history: Round[]; drawKey: number }) {
     }, svg)
     return () => ctx.revert()
   }, [drawKey, history.length])
+
+  if (!history.length) {
+    return <div className="grid min-h-[260px] place-items-center rounded-lg border border-dashed border-[var(--line)] text-center text-[13px] text-[var(--txt-3)]">Run the first real Flower round to populate this chart.</div>
+  }
 
   return (
     <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} className="h-auto w-full overflow-visible">
@@ -95,7 +76,7 @@ function Chart({ history, drawKey }: { history: Round[]; drawKey: number }) {
         <text key={r} x={x(r)} y={H - 10} textAnchor="middle" className="mono" fontSize="11" fill="rgba(244,237,228,0.4)">R{r}</text>
       ))}
       <path d={`${path(history.map(h => h.fp_rate))} L${x(last.round)},${y(0)} L${x(0)},${y(0)} Z`} fill="url(#fw-area)" opacity="0.9" />
-      {(Object.keys(COLORS) as StationId[]).map(id => (
+      {(Object.keys(COLORS) as FederationStationId[]).map(id => (
         <path key={id} data-line d={path(history.map(h => h.per_station[id]))} fill="none" stroke={COLORS[id]} strokeWidth="1.6" strokeOpacity="0.75" />
       ))}
       <path data-line d={path(history.map(h => h.fp_rate))} fill="none" stroke="url(#fw-global)" strokeWidth="4" filter="url(#fw-glow)" strokeLinecap="round" />
@@ -149,35 +130,32 @@ function FlowDiagram({ running }: { running: boolean }) {
 }
 
 export default function Federation() {
-  const [stations, setStations] = useState(INITIAL_STATIONS)
-  const [history, setHistory] = useState(INITIAL_HISTORY)
+  const [federation, setFederation] = useState<FederationStatus | null>(null)
+  const [loading, setLoading] = useState(true)
   const [running, setRunning] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [drawKey, setDrawKey] = useState(0)
-  const [live, setLive] = useState(false)
-  const [runError, setRunError] = useState<string | null>(null)
-
-  const applyStatus = (st: FederationStatus) => {
-    setLive(true)
-    if (!st.history.length) return
-    const lastPer = st.history[st.history.length - 1].per_station
-    setStations(st.stations.map(s => ({
-      id: s.id as StationId,
-      name: s.name,
-      labels: s.labels,
-      fp_rate: s.fp_rate ?? lastPer[s.id] ?? 0,
-      params: s.params,
-    })))
-    setHistory(st.history as Round[])
-    setDrawKey(k => k + 1)
-  }
-
-  useEffect(() => {
-    api.federationStatus().then(applyStatus).catch(() => setLive(false))
-  }, [])
-  const round = history[history.length - 1].round
-  const first = history[0].fp_rate
-  const now = history[history.length - 1].fp_rate
   const barsRef = useRef<HTMLDivElement>(null)
+  const stations = federation?.stations ?? []
+  const history = federation?.history ?? []
+  const round = federation?.round ?? 0
+  const first = history[0]?.fp_rate
+  const now = history[history.length - 1]?.fp_rate
+  const isRunning = running || federation?.running === true
+
+  const loadStatus = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      setFederation(await api.federationStatus())
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { void loadStatus() }, [loadStatus])
 
   useEffect(() => {
     const el = barsRef.current
@@ -192,47 +170,25 @@ export default function Federation() {
   }, [])
 
   const runRound = async () => {
-    if (running) return
+    if (isRunning) return
     setRunning(true)
-    setRunError(null)
-    if (live) {
-      try {
-        applyStatus(await api.federationRound(1))
-      } catch (err) {
-        setRunError((err as Error).message)
-      } finally {
-        setRunning(false)
-      }
-      return
-    }
-    window.setTimeout(() => {
-      const jitter = () => (Math.random() - 0.5) * 0.02
-      const next = stations.map(s => {
-        const fp = Math.max(0.04, s.fp_rate * 0.78 + jitter() * 0.5)
-        return {
-          ...s,
-          labels: s.labels + 3 + Math.floor(Math.random() * 5),
-          fp_rate: fp,
-          params: {
-            camera_weight: +(s.params.camera_weight + jitter()).toFixed(2),
-            fusion_threshold: +(s.params.fusion_threshold + jitter() * 0.5).toFixed(2),
-            thermal_only_threshold: +(s.params.thermal_only_threshold + jitter() * 0.5).toFixed(2),
-          },
-        }
-      })
-      const per = Object.fromEntries(next.map(s => [s.id, s.fp_rate])) as Record<StationId, number>
-      setStations(next)
-      setHistory(h => [...h, { round: h[h.length - 1].round + 1, fp_rate: next.reduce((a, s) => a + s.fp_rate, 0) / next.length, per_station: per }])
+    setError(null)
+    try {
+      const next = await api.runFederationRound()
+      setFederation(next)
       setDrawKey(k => k + 1)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
       setRunning(false)
-    }, 2200)
+    }
   }
 
-  const params = useMemo(() => [
+  const params = [
     ['Camera weight', 'camera_weight'],
     ['Fusion threshold', 'fusion_threshold'],
     ['Thermal-only threshold', 'thermal_only_threshold'],
-  ] as const, [])
+  ] as const
 
   return (
     <section id="federation" className="fw-section px-5 py-[13vh] md:px-8">
@@ -258,19 +214,25 @@ export default function Federation() {
             <span className="text-[var(--txt-3)]">·</span>
             <span>{stations.length} stations</span>
             <span className="text-[var(--txt-3)]">·</span>
-            <span>false alarms <span className="text-[var(--txt-2)]">{pct(first)}</span> → <span className="font-medium text-[var(--amber-hi)]">{pct(now)}</span></span>
-            {history[0].miss_rate != null && history[history.length - 1].miss_rate != null && (
+            {history.length > 0 ? (
               <>
-                <span className="text-[var(--txt-3)]">·</span>
-                <span>missed fires <span className="text-[var(--txt-2)]">{pct(history[0].miss_rate!)}</span> → <span className="font-medium text-[var(--amber-hi)]">{pct(history[history.length - 1].miss_rate!)}</span></span>
+                <span>false alarms <span className="text-[var(--txt-2)]">{pct(first)}</span> → <span className="font-medium text-[var(--amber-hi)]">{pct(now)}</span></span>
+                {history[0].miss_rate != null && history[history.length - 1].miss_rate != null && (
+                  <>
+                    <span className="text-[var(--txt-3)]">·</span>
+                    <span>missed fires <span className="text-[var(--txt-2)]">{pct(history[0].miss_rate)}</span> → <span className="font-medium text-[var(--amber-hi)]">{pct(history[history.length - 1].miss_rate)}</span></span>
+                  </>
+                )}
               </>
-            )}
+            ) : <span className="text-[var(--txt-3)]">awaiting first training round</span>}
           </div>
-          <button className="fw-btn fw-btn--amber ml-auto !px-6 !py-3 !text-[15px] disabled:opacity-80" onClick={runRound} disabled={running}>
-            {running ? <span className="fw-spinner" /> : <Play size={16} fill="currentColor" />}
-            {running ? (live ? 'Flower training…' : 'Running round…') : live ? 'Run live Flower round' : 'Run federated round'}
+          <button className="fw-btn fw-btn--amber ml-auto !px-6 !py-3 !text-[15px] disabled:opacity-80" onClick={() => void runRound()} disabled={isRunning || loading}>
+            {isRunning ? <span className="fw-spinner" /> : <Play size={16} fill="currentColor" />}
+            {isRunning ? 'Running real Flower round…' : 'Run federated round'}
           </button>
         </div>
+
+        {error && <div className="mt-4 rounded-md border border-red-400/30 bg-red-400/10 px-4 py-3 text-[13px] text-red-200">Federation backend unavailable: {error}</div>}
 
         {/* station cards */}
         <div ref={barsRef} className="mt-5 grid gap-5 md:grid-cols-3">
@@ -281,16 +243,24 @@ export default function Federation() {
                   <span className="fw-dot fw-dot--ok" />
                   <h3 className="text-[20px] font-medium tracking-[-0.02em]">{s.name}</h3>
                 </div>
-                <span className="mono text-[10px] uppercase tracking-[0.16em] text-[var(--txt-3)]">online</span>
+                <span className="mono text-[10px] uppercase tracking-[0.16em] text-[var(--txt-3)]">{s.online ? 'online' : 'offline'}</span>
               </div>
               <div className="mt-6 grid grid-cols-2 gap-4">
                 <div>
-                  <div className="text-[12px] text-[var(--txt-3)]">Labels collected</div>
+                  <div className="text-[12px] text-[var(--txt-3)]">Training labels</div>
                   <div className="mono mt-1 text-[26px] tracking-[-0.02em]">{s.labels}</div>
                 </div>
                 <div>
                   <div className="text-[12px] text-[var(--txt-3)]">False-alarm rate</div>
                   <div className="mono mt-1 text-[26px] tracking-[-0.02em]" style={{ color: COLORS[s.id] }}>{pct(s.fp_rate)}</div>
+                </div>
+                <div>
+                  <div className="text-[12px] text-[var(--txt-3)]">Missed-fire rate</div>
+                  <div className="mono mt-1 text-[20px] tracking-[-0.02em]">{pct(s.miss_rate)}</div>
+                </div>
+                <div>
+                  <div className="text-[12px] text-[var(--txt-3)]">Dispatcher feedback</div>
+                  <div className="mono mt-1 text-[12px] text-[var(--txt-2)]">{s.approvals} approved · {s.rejections} rejected</div>
                 </div>
               </div>
               <div className="mt-6 space-y-3.5">
@@ -327,7 +297,7 @@ export default function Federation() {
           </div>
           <div className="fw-panel flex flex-col p-6" data-fade data-delay={0.15}>
             <div className="text-[13px] text-[var(--txt-3)]">What leaves a station</div>
-            <FlowDiagram running={running} />
+            <FlowDiagram running={isRunning} />
             <div className="mt-auto flex gap-3 rounded-md border border-[var(--line)] bg-[var(--ink-1)] p-3.5 text-[13px] leading-relaxed text-[var(--txt-2)]">
               <Lock size={16} className="mt-0.5 shrink-0 text-[var(--amber-hi)]" />
               <span>Only settings and label counts leave each station; camera images never do.</span>
@@ -335,11 +305,10 @@ export default function Federation() {
           </div>
         </div>
         <p className="mono mt-4 text-[11px] text-[var(--txt-3)]">
-          {live
-            ? 'LIVE · Flower ServerApp (FedAvg) + 3 station ClientApps. Each round trains on dispatcher Dispatch / False-alarm labels via /api/federation.'
-            : 'Backend offline: illustrative preview. Start the backend to run real Flower rounds.'}
+          {loading
+            ? 'Loading live federation status…'
+            : 'LIVE · Flower FedAvg across North Bay, Sierra, and SoCal. Dispatch and False alarm labels stay in their region; camera images never leave a station.'}
         </p>
-        {runError && <p className="mono mt-2 text-[11px] text-red-400">{runError}</p>}
       </div>
     </section>
   )
