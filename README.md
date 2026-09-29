@@ -39,12 +39,16 @@ Every key is optional; each agent falls back instead of failing:
 
 | Missing | Fallback |
 |---|---|
-| `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | Rule-based reasoning, severity and response plan (Claude is used if both are set) |
+| `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `NEBIUS_API_KEY` | Rule-based reasoning, severity and response plan |
 | YOLO weights | Vision-LLM fire check (needs an LLM key) |
 | Cameras | ALERTWest public API (no key) picks the nearest live camera; or pass `image_url` |
 | `OPENWEATHERMAP_API_KEY` | Open-Meteo, no key needed |
 | `NASA_FIRMS_MAP_KEY` | Thermal score 0 (camera alone must clear the fusion threshold) |
 | `DASHBOARD_WEBHOOK_URL` | Approvals are recorded, no webhook sent |
+
+### Nebius AI Studio
+
+Nebius uses an OpenAI-compatible API. In your ignored `.env`, set `LLM_PROVIDER=nebius`, paste the credential into `NEBIUS_API_KEY`, and run `uv run python scripts/check_nebius.py`. The command lists the models enabled for your Nebius project; copy the model ID you choose into `NEBIUS_MODEL` and re-run the check. The API base URL is already set to `https://api.studio.nebius.ai/v1`.
 
 Confirmed fires are **held for dispatcher approval** (`REQUIRE_HUMAN_APPROVAL=true`) — nothing is broadcast until a human clicks Dispatch.
 

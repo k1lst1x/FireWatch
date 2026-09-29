@@ -106,3 +106,15 @@ def test_claude_provider_selected(monkeypatch):
     monkeypatch.setattr(settings, "llm_provider", "openai")
     assert llm.provider() == "openai"
     assert type(llm.build_model()).__name__ == "OpenAIChatModel"
+
+
+def test_nebius_provider_selected(monkeypatch):
+    from app.config import settings
+    from app.services.ai.agents import llm
+
+    monkeypatch.setattr(settings, "nebius_api_key", "nebius-test")
+    monkeypatch.setattr(settings, "nebius_model", "test-model")
+    monkeypatch.setattr(settings, "llm_provider", "nebius")
+    assert llm.provider() == "nebius"
+    assert llm.model_name() == "test-model"
+    assert type(llm.build_model()).__name__ == "OpenAIChatModel"

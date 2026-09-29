@@ -41,13 +41,18 @@ class Settings:
     database_url: str = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./firewatch.db")
 
     # ── AI pipeline ────────────────────────────────────────────────────────────
-    # Vision-language model (OpenAI)
+    # Vision-language model providers
     llm_provider: str = os.getenv("LLM_PROVIDER", "").lower()
     anthropic_api_key: str = os.getenv("ANTHROPIC_API_KEY", "")
     anthropic_model: str = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5-5")
     openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
     openai_model: str = os.getenv("OPENAI_MODEL", "gpt-4o")
     openai_base_url: str = os.getenv("OPENAI_BASE_URL", "")
+    # Nebius AI Studio exposes an OpenAI-compatible API, but has its own key and
+    # model catalogue. Keep its credentials separate from an OpenAI account.
+    nebius_api_key: str = os.getenv("NEBIUS_API_KEY", "")
+    nebius_model: str = os.getenv("NEBIUS_MODEL", "")
+    nebius_base_url: str = os.getenv("NEBIUS_BASE_URL", "https://api.studio.nebius.ai/v1")
     llm_timeout_sec: float = _env_float("LLM_TIMEOUT_SEC", 45.0)
 
     # Camera — ALERTCalifornia (UC San Diego), California camera network:

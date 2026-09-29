@@ -18,12 +18,17 @@ def provider() -> str | None:
         return None
     has_claude = bool((settings.anthropic_api_key or "").strip())
     has_openai = bool((settings.openai_api_key or "").strip())
+    has_nebius = bool((settings.nebius_api_key or "").strip())
     if settings.llm_provider == "anthropic" and has_claude:
         return "anthropic"
     if settings.llm_provider == "openai" and has_openai:
         return "openai"
+    if settings.llm_provider == "nebius" and has_nebius:
+        return "nebius"
     if has_claude:
         return "anthropic"
+    if has_nebius:
+        return "nebius"
     if has_openai:
         return "openai"
     return None
@@ -34,7 +39,12 @@ def llm_available() -> bool:
 
 
 def model_name() -> str:
-    return settings.anthropic_model if provider() == "anthropic" else settings.openai_model
+    selected_provider = provider()
+    if selected_provider == "anthropic":
+        return settings.anthropic_model
+    if selected_provider == "nebius":
+        return settings.nebius_model
+    return settings.openai_model
 
 
 def build_model():
@@ -43,6 +53,13 @@ def build_model():
         from pydantic_ai.providers.anthropic import AnthropicProvider
 
         return AnthropicModel(settings.anthropic_model, provider=AnthropicProvider(api_key=settings.anthropic_api_key))
+    if provider() == "nebius":
+        if not settings.nebius_model.strip():
+            raise ValueError("NEBIUS_MODEL must be set when LLM_PROVIDER=nebius")
+        return OpenAIChatModel(
+            settings.nebius_model,
+            provider=OpenAIProvider(api_key=settings.nebius_api_key, base_url=settings.nebius_base_url),
+        )
     kwargs: dict[str, Any] = {"api_key": settings.openai_api_key}
     if settings.openai_base_url:
         kwargs["base_url"] = settings.openai_base_url
