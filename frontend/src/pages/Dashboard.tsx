@@ -169,9 +169,6 @@ function Console() {
         <div className="pointer-events-auto flex items-center gap-3">
           <FlameMark size={22} />
           <span className="text-[17px] font-semibold tracking-[-0.03em]">FireWatch</span>
-          <span className="fwmap-mono ml-1 rounded-full border border-[var(--line)] bg-black/40 px-2.5 py-1 text-[10px] tracking-[0.14em] text-[var(--ash-3)] backdrop-blur">
-            SAN FRANCISCO 3D TWIN · NASA FIRMS
-          </span>
 
           {booted && (
             <span className="fwmap-mono hidden sm:inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-950/40 px-2.5 py-0.5 text-[10px] tracking-wide text-emerald-300 backdrop-blur">
