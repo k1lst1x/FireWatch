@@ -47,10 +47,6 @@ async def require_user(user: User | None = Depends(get_current_user)) -> User | 
 
 
 async def require_admin(user: User | None = Depends(require_user)) -> User | None:
-    # With direct-use mode enabled there is no signed-in user to authorize.
-    # Deployments can restore the original admin gate with AUTH_REQUIRED=true.
-    if not settings.auth_required:
-        return user
     if user is None or user.role != UserRole.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Administrator role required")
     return user

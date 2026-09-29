@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import base64
+import io
 import pathlib
+from urllib.parse import urlparse
+
+from PIL import Image, UnidentifiedImageError
 
 from app.config import settings
 
@@ -32,6 +36,23 @@ def media_type_for(ref: str, data: bytes) -> str:
     return "image/jpeg"
 
 
+def _validate_image(data: bytes) -> bytes:
+    """Reject malformed, animated, or oversized decoded images before inference."""
+    try:
+        with Image.open(io.BytesIO(data)) as image:
+            if getattr(image, "n_frames", 1) != 1:
+                raise ValueError("animated images are not allowed")
+            width, height = image.size
+            if width < 1 or height < 1 or width * height > settings.max_image_pixels:
+                raise ValueError("image exceeds maximum pixel count")
+            image.verify()
+    except (UnidentifiedImageError, OSError, ValueError) as exc:
+        if isinstance(exc, ValueError) and str(exc).startswith(("animated", "image exceeds")):
+            raise
+        raise ValueError("image is malformed or unsupported") from exc
+    return data
+
+
 async def load_image_bytes(ref: str) -> bytes:
     if ref.startswith("data:"):
         if "," not in ref or len(ref) > settings.max_image_bytes * 2:
@@ -39,12 +60,15 @@ async def load_image_bytes(ref: str) -> bytes:
         data = base64.b64decode(ref.split(",", 1)[1], validate=True)
         if len(data) > settings.max_image_bytes:
             raise ValueError("image exceeds maximum size")
-        return data
+        return _validate_image(data)
     local = _local_path(ref)
     if local is not None:
-        return local.read_bytes()
+        return _validate_image(local.read_bytes())
     if ref.startswith("https://"):
-        return await httpx_get_bytes(
+        host = (urlparse(ref).hostname or "").lower()
+        if host not in settings.allowed_image_hosts:
+            raise ValueError("image URL host is not allowed")
+        data = await httpx_get_bytes(
             ref,
             timeout=20.0,
             max_attempts=settings.collection_http_max_attempts,
@@ -52,4 +76,5 @@ async def load_image_bytes(ref: str) -> bytes:
             max_bytes=settings.max_image_bytes,
             allow_public_url=True,
         )
+        return _validate_image(data)
     raise FileNotFoundError("image reference is not an allowed image source")

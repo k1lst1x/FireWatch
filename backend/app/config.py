@@ -26,11 +26,23 @@ class Settings:
     secret_key: str = os.getenv("SECRET_KEY", "")
     algorithm: str = os.getenv("ALGORITHM", "HS256")
     access_token_expire_minutes: int = _env_int("ACCESS_TOKEN_EXPIRE_MINUTES", 60)
-    # FireWatch is a direct-use dispatch console by default.  Set this to true
-    # only when deploying behind an authenticated operator environment.
-    auth_required: bool = os.getenv("AUTH_REQUIRED", "false").lower() == "true"
-    admin_emails: set[str] = {email.strip().lower() for email in os.getenv("ADMIN_EMAILS", "").split(",") if email.strip()}
+    # Authentication is fail-closed. Privileged operator actions never have an
+    # anonymous fallback, even during local development.
+    auth_required: bool = os.getenv("AUTH_REQUIRED", "true").lower() == "true"
     max_image_bytes: int = _env_int("MAX_IMAGE_BYTES", 8 * 1024 * 1024)
+    max_analysis_request_bytes: int = _env_int("MAX_ANALYSIS_REQUEST_BYTES", 17 * 1024 * 1024)
+    max_image_pixels: int = _env_int("MAX_IMAGE_PIXELS", 16_000_000)
+    allowed_image_hosts: set[str] = {
+        host.strip().lower()
+        for host in os.getenv(
+            "ALLOWED_IMAGE_HOSTS",
+            "img.cdn.prod.alertwest.com,www.alertcalifornia.org,cameras.alertcalifornia.org",
+        ).split(",")
+        if host.strip()
+    }
+    login_rate_limit_per_minute: int = _env_int("LOGIN_RATE_LIMIT_PER_MINUTE", 5)
+    analysis_rate_limit_per_minute: int = _env_int("ANALYSIS_RATE_LIMIT_PER_MINUTE", 10)
+    max_concurrent_analyses: int = _env_int("MAX_CONCURRENT_ANALYSES", 2)
 
     # CORS
     cors_origins: list[str] = [
@@ -136,6 +148,14 @@ class Settings:
             raise ValueError("ACCESS_TOKEN_EXPIRE_MINUTES must be >= 1")
         if self.max_image_bytes < 1024:
             raise ValueError("MAX_IMAGE_BYTES must be >= 1024")
+        if self.max_analysis_request_bytes < self.max_image_bytes:
+            raise ValueError("MAX_ANALYSIS_REQUEST_BYTES must be at least MAX_IMAGE_BYTES")
+        if self.max_image_pixels < 1:
+            raise ValueError("MAX_IMAGE_PIXELS must be positive")
+        if self.login_rate_limit_per_minute < 1 or self.analysis_rate_limit_per_minute < 1:
+            raise ValueError("rate limits must be positive")
+        if self.max_concurrent_analyses < 1:
+            raise ValueError("MAX_CONCURRENT_ANALYSES must be >= 1")
         if self.auth_required and self.secret_key in {"", "change-me-before-production", "replace-with-a-long-random-value"}:
             raise ValueError("SECRET_KEY must be a unique non-placeholder value when authentication is enabled")
 

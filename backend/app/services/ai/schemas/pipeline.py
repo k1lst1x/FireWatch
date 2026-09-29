@@ -22,12 +22,12 @@ class CriticalityLevel(str, Enum):
 
 
 class AlertEvent(BaseModel):
-    event_id: str = Field(default_factory=lambda: f"evt-{uuid.uuid4().hex[:8]}")
+    event_id: str = Field(default_factory=lambda: f"evt-{uuid.uuid4().hex[:8]}", max_length=128)
     lat: float = Field(ge=-90, le=90)
     lon: float = Field(ge=-180, le=180)
-    camera_id: Optional[str] = None
-    image_url: Optional[str] = None
-    timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    camera_id: Optional[str] = Field(default=None, max_length=128)
+    image_url: Optional[str] = Field(default=None, max_length=16 * 1024 * 1024)
+    timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat(), max_length=64)
 
 
 class CameraResult(BaseModel):
