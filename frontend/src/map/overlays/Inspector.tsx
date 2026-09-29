@@ -30,11 +30,13 @@ const CATEGORY_TABS: { id: CameraCategory; label: string }[] = [
 export function AnalysisBar({
   running,
   onRun,
+  selectedCameraId,
   onSelectCamera,
   onOpenVideoModal,
 }: {
   running: boolean
   onRun: (input: AnalyzeInput) => void
+  selectedCameraId?: string | null
   onSelectCamera?: (camera: LiveCameraFeed | NearbyCamera) => void
   onOpenVideoModal?: (camera: LiveCameraFeed) => void
 }) {
@@ -49,6 +51,17 @@ export function AnalysisBar({
   const [cameraUpdatedAt, setCameraUpdatedAt] = useState<number | null>(null)
   const [cameraPoll, setCameraPoll] = useState(0)
   const [liveClock, setLiveClock] = useState(() => new Date().toLocaleTimeString('en-US', { hour12: false }))
+
+  // Synchronize when a camera is chosen on the map
+  useEffect(() => {
+    if (!selectedCameraId) return
+    const match = cameras.find(c => c.id === selectedCameraId)
+    if (match) {
+      setSelectedCamera(match)
+      setLat(match.lat.toFixed(4))
+      setLon(match.lon.toFixed(4))
+    }
+  }, [selectedCameraId, cameras])
 
   // Real-time ticking surveillance timecode
   useEffect(() => {
@@ -561,6 +574,105 @@ export function IncidentDetail({
               <X size={14} /> False alarm
             </button>
           </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export function CameraStationDetail({
+  camera,
+  onOpenVideoModal,
+  onRunAnalysis,
+  onClose,
+}: {
+  camera: LiveCameraFeed
+  onOpenVideoModal?: (camera: LiveCameraFeed) => void
+  onRunAnalysis?: (camera: LiveCameraFeed) => void
+  onClose: () => void
+}) {
+  const [frameTimestamp, setFrameTimestamp] = useState(Date.now())
+  const imgUrl = camera.live_cctv_url
+    ? `${camera.live_cctv_url}?_t=${frameTimestamp}`
+    : (camera.image_url || '')
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setFrameTimestamp(Date.now()), 5000)
+    return () => window.clearInterval(timer)
+  }, [])
+
+  return (
+    <div className="fwmap-card flex w-[330px] flex-col overflow-hidden border border-white/15 bg-zinc-950/95 shadow-2xl backdrop-blur-md animate-in fade-in duration-200">
+      <div className="flex items-center justify-between border-b border-[var(--line)] p-3">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[#ff5a00] text-white shadow-sm">
+            <Camera size={14} />
+          </span>
+          <div className="min-w-0">
+            <h4 className="truncate text-[13px] font-bold text-white">{camera.name}</h4>
+            <div className="fwmap-mono text-[10px] text-zinc-400 flex items-center gap-1.5">
+              <span className="text-emerald-400 font-semibold">ONLINE</span>
+              <span>•</span>
+              <span>{(camera.distance_km ?? 0).toFixed(1)} km away</span>
+            </div>
+          </div>
+        </div>
+        <button
+          className="rounded-lg p-1.5 text-[var(--ash-3)] transition-colors hover:bg-white/5 hover:text-white"
+          onClick={onClose}
+          aria-label="Close camera inspector"
+        >
+          <X size={15} />
+        </button>
+      </div>
+
+      <div className="p-3">
+        {/* Live Camera Viewport */}
+        <div
+          className="relative aspect-video w-full overflow-hidden rounded-lg border border-white/15 bg-black cursor-pointer group shadow"
+          onClick={() => onOpenVideoModal && onOpenVideoModal(camera)}
+          title="Click to popup large live video window"
+        >
+          <img src={imgUrl} alt={camera.name} className="h-full w-full object-cover" />
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+            <span className="flex items-center gap-1.5 rounded-full bg-[#ff5a00] px-3 py-1.5 text-[11px] font-bold text-white shadow-xl">
+              <Maximize2 size={13} /> Popup Video
+            </span>
+          </div>
+          <div className="absolute top-2 left-2 flex items-center gap-1 rounded bg-black/75 px-1.5 py-0.5 text-[9px] font-mono text-emerald-400 border border-white/10">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span>DOT CCTV</span>
+          </div>
+        </div>
+
+        <div className="mt-2.5 space-y-1 text-[11px] text-zinc-300 font-mono">
+          <div className="flex justify-between">
+            <span className="text-zinc-500">Network</span>
+            <span className="truncate max-w-[180px]">{camera.network || 'Caltrans District 4'}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-zinc-500">Coordinates</span>
+            <span>{camera.lat.toFixed(4)}°N, {camera.lon.toFixed(4)}°W</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="border-t border-[var(--line)] p-2.5 flex gap-2">
+        {onOpenVideoModal && (
+          <button
+            className="fwmap-btn fwmap-btn--ember flex-1 !text-xs !py-1.5"
+            onClick={() => onOpenVideoModal(camera)}
+          >
+            <Maximize2 size={13} /> Popup Video
+          </button>
+        )}
+        {onRunAnalysis && (
+          <button
+            className="fwmap-btn fwmap-btn--ghost flex-1 !text-xs !py-1.5"
+            onClick={() => onRunAnalysis(camera)}
+          >
+            <Play size={12} fill="currentColor" /> Analyze
+          </button>
         )}
       </div>
     </div>

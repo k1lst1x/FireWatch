@@ -5,7 +5,7 @@ import { BayhawkProvider, useBayhawk } from '../context/BayhawkContext'
 import CityMap from '../map/CityMap'
 import { DEMO_INCIDENTS } from '../map/demoIncidents'
 import { IncidentList, StatusStrip, TelemetryPanel } from '../map/overlays/Panels'
-import { AnalysisBar, IncidentDetail } from '../map/overlays/Inspector'
+import { AnalysisBar, IncidentDetail, CameraStationDetail } from '../map/overlays/Inspector'
 import FlameMark from '../map/overlays/FlameMark'
 import type { BasemapTier } from '../map/config'
 import { api, type AnalyzeInput, type CameraDirectoryResponse } from '../lib/api'
@@ -128,10 +128,35 @@ function Console() {
       ...matched,
     }
     setSelectedCameraId(cam.id)
-    setVideoModalCamera(full)
-    // Automatically query real-time weather at the camera's location
+    // Synchronize telemetry without automatically opening modal popup
     syncTelemetry(full.lat, full.lon, `Camera: ${full.name}`)
   }, [syncTelemetry])
+
+  const selectedCamera = useMemo(() => {
+    if (!selectedCameraId) return null
+    const matched = CALIFORNIA_REALTIME_CAMERAS.find(c => c.id === selectedCameraId)
+    const fromList = cameras.find(c => c.id === selectedCameraId)
+    if (!matched && !fromList) return null
+    const cam = (matched || fromList)!
+    const dist = (cam as any).distance_km ?? (cam.lat && cam.lon ? calculateDistanceKm(37.7749, -122.4194, cam.lat, cam.lon) : 0)
+    return {
+      id: cam.id,
+      name: cam.name || `Station ${cam.id}`,
+      lat: cam.lat,
+      lon: cam.lon,
+      distance_km: Math.round(dist * 10) / 10,
+      resolution: (cam as any).resolution || 'Real-Time DOT Feed',
+      fps: (cam as any).fps || 2,
+      network: (cam as any).network || 'Caltrans District 4 Real-Time Traffic CCTV',
+      status: 'ONLINE',
+      stream_type: 'live_cctv',
+      live_cctv_url: (cam as any).live_cctv_url || cam.image_url,
+      image_url: cam.image_url || (cam as any).live_cctv_url,
+      video_url: (cam as any).video_url || '',
+      category: (cam as any).category || 'caltrans',
+      ...matched,
+    } as LiveCameraFeed
+  }, [selectedCameraId, cameras])
 
   const handleIncidentSelect = useCallback((id: string | null) => {
     setSelectedId(id)
@@ -304,6 +329,16 @@ function Console() {
               />
             </div>
           )}
+          {selectedCamera && !selected && (
+            <div className="pointer-events-auto">
+              <CameraStationDetail
+                camera={selectedCamera}
+                onOpenVideoModal={cam => setVideoModalCamera(cam)}
+                onRunAnalysis={cam => analyze({ lat: cam.lat, lon: cam.lon, camera_id: cam.id, image_url: cam.image_url })}
+                onClose={() => setSelectedCameraId(null)}
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -335,6 +370,7 @@ function Console() {
         <AnalysisBar
           running={running}
           onRun={onRun}
+          selectedCameraId={selectedCameraId}
           onSelectCamera={handleCameraSelect}
           onOpenVideoModal={cam => setVideoModalCamera(cam)}
         />
