@@ -4,10 +4,6 @@ import asyncio
 import logging
 from typing import Any
 
-from pydantic_ai import Agent
-from pydantic_ai.models.openai import OpenAIChatModel
-from pydantic_ai.providers.openai import OpenAIProvider
-
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -63,6 +59,12 @@ def model_name(selected_provider: str | None = None) -> str:
 
 
 def build_model(selected_provider: str | None = None):
+    # pydantic-ai is required only when an analysis is run.  Keeping the import
+    # here lets status, settings, and camera-directory routes start in a
+    # lightweight local environment.
+    from pydantic_ai.models.openai import OpenAIChatModel
+    from pydantic_ai.providers.openai import OpenAIProvider
+
     selected_provider = selected_provider or provider()
     if selected_provider == "anthropic":
         from pydantic_ai.models.anthropic import AnthropicModel
@@ -94,6 +96,8 @@ class LazyAgent:
 
     def get(self) -> Agent:
         if self._agent is None:
+            from pydantic_ai import Agent
+
             agent = Agent(build_model(), **self._kwargs)
             for fn in self._prompts:
                 agent.system_prompt(fn)

@@ -5,10 +5,18 @@ export interface Integration {
   [k: string]: unknown
 }
 
+export interface KeyStatus {
+  label: string
+  environment: string
+  configured: boolean
+  used_for: string
+}
+
 export interface PipelineStatus {
   mock: boolean
   replay: string
   human_approval: boolean
+  key_status: Record<string, KeyStatus>
   integrations: Record<string, Integration>
 }
 

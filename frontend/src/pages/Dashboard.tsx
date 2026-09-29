@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Home } from 'lucide-react'
+import { Home, Settings as SettingsIcon } from 'lucide-react'
 import { BayhawkProvider, useBayhawk } from '../context/BayhawkContext'
 import CityMap from '../map/CityMap'
 import { DEMO_INCIDENTS } from '../map/demoIncidents'
@@ -142,6 +142,14 @@ function Console() {
             title="Toggle HUD overlays to view 100% map"
           >
             {hudVisible ? 'Hide HUD' : 'Show HUD'}
+          </button>
+          <button
+            className="fwmap-btn fwmap-btn--ghost !px-3 !py-2"
+            onClick={() => navigate('/settings')}
+            aria-label="Open system settings"
+            title="System settings"
+          >
+            <SettingsIcon size={14} />
           </button>
           <button
             className="fwmap-btn fwmap-btn--ghost !px-3 !py-2"

@@ -25,6 +25,18 @@ def integration_status() -> dict:
         "mock": settings.is_mock,
         "replay": settings.replay_mode,
         "human_approval": settings.require_human_approval,
+        # Configuration health only: credential values never leave the server.
+        "key_status": {
+            "anthropic_api_key": {"label": "Anthropic API", "environment": "ANTHROPIC_API_KEY", "configured": _has(settings.anthropic_api_key), "used_for": "LLM reasoning when Anthropic is selected"},
+            "openai_api_key": {"label": "OpenAI API", "environment": "OPENAI_API_KEY", "configured": _has(settings.openai_api_key), "used_for": "LLM and vision fallback when OpenAI is selected"},
+            "nebius_api_key": {"label": "Nebius AI Studio", "environment": "NEBIUS_API_KEY", "configured": _has(settings.nebius_api_key), "used_for": "OpenAI-compatible LLM provider when selected"},
+            "flower_api_key": {"label": "Flower AI", "environment": "FLOWER_API_KEY", "configured": _has(settings.flower_api_key), "used_for": "Independent multi-agent deliberation reviewer"},
+            "nasa_firms_map_key": {"label": "NASA FIRMS", "environment": "NASA_FIRMS_MAP_KEY", "configured": _has(settings.nasa_firms_map_key), "used_for": "Satellite thermal hotspot lookups"},
+            "openweathermap_api_key": {"label": "OpenWeatherMap", "environment": "OPENWEATHERMAP_API_KEY", "configured": _has(settings.openweathermap_api_key), "used_for": "Weather observations; Open-Meteo remains the fallback"},
+            "alertca_api_key": {"label": "ALERTCalifornia", "environment": "ALERTCA_API_KEY", "configured": _has(settings.alertca_api_key), "used_for": "Partner camera directory when CAMERA_SOURCE=alertca"},
+            "dashboard_webhook_url": {"label": "Dispatch webhook", "environment": "DASHBOARD_WEBHOOK_URL", "configured": _has(settings.dashboard_webhook_url), "used_for": "Approved incident notifications"},
+            "secret_key": {"label": "JWT signing key", "environment": "SECRET_KEY", "configured": _has(settings.secret_key), "used_for": "Local API authentication tokens"},
+        },
         "integrations": {
             "llm": {
                 "live": llm,

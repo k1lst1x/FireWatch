@@ -9,16 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import Incident, IncidentStatus
 from app.db.session import get_db
 from app.dependencies import require_admin, require_user
-from app.services.ai.agents.orchestrator import OrchestratorAgent
 from app.services.ai.agents import alertwest
 from app.config import settings
 from app.services.ai.integrations import integration_status
 from app.services.ai.schemas.pipeline import AlertEvent, ConfirmationStatus, PipelineResult
 
 router = APIRouter(prefix="/ai", tags=["ai"])
-
-_orchestrator = OrchestratorAgent()
-
 
 class ReviewRequest(BaseModel):
     decision: str
@@ -149,7 +145,12 @@ async def analyze(
     db: AsyncSession = Depends(get_db),
 ) -> PipelineResult:
     try:
-        result = await _orchestrator.run(event=event)
+        # Vision and LLM dependencies are intentionally loaded only for an
+        # analysis request.  That keeps health, settings, and camera browsing
+        # available during a lightweight local setup.
+        from app.services.ai.agents import OrchestratorAgent
+
+        result = await OrchestratorAgent().run(event=event)
     except Exception as exc:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
     row = _incident_row(result, event)
