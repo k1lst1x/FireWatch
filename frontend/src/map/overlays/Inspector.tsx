@@ -202,15 +202,20 @@ export function AnalysisBar({
                 title="Click to open video popup window"
               >
                 <div className="relative aspect-video w-full bg-zinc-950 overflow-hidden">
-                  <video
-                    key={activeFeed.video_url}
-                    src={activeFeed.video_url}
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                    className="h-full w-full object-cover"
-                  />
+                  {activeFeed.stream_type === 'live_stream' && activeFeed.live_stream_url ? (
+                    <iframe
+                      src={activeFeed.live_stream_url}
+                      title={activeFeed.name}
+                      allow="accelerometer; autoplay; encrypted-media"
+                      className="h-full w-full border-0 pointer-events-none"
+                    />
+                  ) : (
+                    <img
+                      src={activeFeed.live_cctv_url || activeFeed.image_url}
+                      alt={activeFeed.name}
+                      className="h-full w-full object-cover"
+                    />
+                  )}
 
                   {/* Hover Prompt */}
                   <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity z-10">
