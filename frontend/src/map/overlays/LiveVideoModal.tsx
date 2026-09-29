@@ -381,7 +381,7 @@ export default function LiveVideoModal({
                 }}
               >
                 <Eye size={13} />
-                <span>Fly to Location on 3D Map</span>
+                <span>Fly to Location on Map</span>
               </button>
             )}
             <button

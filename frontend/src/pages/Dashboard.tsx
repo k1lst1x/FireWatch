@@ -241,12 +241,12 @@ function Console() {
           {booted && (
             <span className="fwmap-mono hidden sm:inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-950/40 px-2.5 py-0.5 text-[10px] tracking-wide text-emerald-300 backdrop-blur">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              SAN FRANCISCO 3D RENDERED
+              TACTICAL 2D RADAR ACTIVE
             </span>
           )}
         </div>
 
-        {/* Center Camera Matrix Controls focused strictly on San Francisco */}
+        {/* Center Camera Matrix Controls focused strictly on California / SF */}
         <div className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-white/10 bg-black/70 p-1 backdrop-blur-md shadow-2xl">
           <button
             className={`rounded-full px-3 py-1 text-[11px] font-medium transition-all ${
@@ -255,9 +255,9 @@ function Console() {
                 : 'text-zinc-400 hover:text-white'
             }`}
             onClick={() => setCameraMode('isometric')}
-            title="Benchmark Oblique View (SF Downtown Anchor)"
+            title="San Francisco Downtown Core"
           >
-            Isometric 3D
+            Downtown SF
           </button>
           <button
             className={`rounded-full px-3 py-1 text-[11px] font-medium transition-all ${
@@ -266,9 +266,9 @@ function Console() {
                 : 'text-zinc-400 hover:text-white'
             }`}
             onClick={() => setCameraMode('topdown')}
-            title="Nadir Top-Down Satellite View"
+            title="Bay Area Regional View"
           >
-            Nadir 90°
+            Bay Area
           </button>
           <button
             className={`rounded-full px-3 py-1 text-[11px] font-medium transition-all ${
@@ -277,9 +277,9 @@ function Console() {
                 : 'text-zinc-400 hover:text-white'
             }`}
             onClick={() => setCameraMode('cinematic')}
-            title="Twin Peaks Oblique Twilight Horizon"
+            title="California Statewide View"
           >
-            Cinematic
+            California
           </button>
         </div>
 
@@ -389,7 +389,7 @@ function Console() {
             <span>200+ MW</span>
           </div>
           <div className="mt-2 text-[10px] text-zinc-400 leading-tight">
-            Volumetric beams clamped to 3D San Francisco buildings.
+            Real-time thermal anomalies & optical surveillance network.
           </div>
         </div>
       )}
@@ -436,7 +436,7 @@ function Console() {
         />
       )}
 
-      {/* boot veil, so the city fades in rather than popping */}
+      {/* boot veil, so the map fades in smoothly */}
       <div className={`fwmap-boot ${booted ? 'is-done' : ''}`}>
         <div className="w-[300px]">
           <div className="flex items-center gap-3">
@@ -453,7 +453,7 @@ function Console() {
             />
           </div>
           <div className="fwmap-mono mt-3 flex justify-between text-[10px] uppercase tracking-[0.18em] text-[var(--ash-3)]">
-            <span>Building San Francisco</span>
+            <span>Initializing Tactical Radar</span>
             <span>37.77° N</span>
           </div>
         </div>

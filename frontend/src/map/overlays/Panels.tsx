@@ -64,7 +64,7 @@ export function TelemetryPanel({
       <div className="mt-3 space-y-1.5 text-[11px]">
         <div className="flex items-center gap-2 text-[var(--ash-2)]">
           <Layers size={12} className="text-[var(--ash-3)]" />
-          <span className="truncate">{tier ? TIER_LABEL[tier] : 'Photorealistic 3D Cloud'}</span>
+          <span className="truncate">{tier ? TIER_LABEL[tier] : 'Tactical 2D Engine'}</span>
         </div>
         <div className="flex items-center gap-2 text-emerald-400">
           <Flame size={12} />

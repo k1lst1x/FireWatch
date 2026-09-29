@@ -221,8 +221,8 @@ export async function fetchNasaHotspots(): Promise<RealtimeNasaHotspot[]> {
 
 /**
  * Live San Francisco Thermal Radiometry Nodes calibrated to current weather
- * Merged with statewide NASA hotspots so the 3D map always has photorealistic
- * real-time telemetry beams clamped tightly to downtown San Francisco buildings.
+ * Merged with statewide NASA hotspots so the map always has
+ * real-time telemetry markers across San Francisco.
  */
 export function buildLiveSanFranciscoTelemetry(weather: RealtimeWeather): Incident[] {
   const now = new Date().toISOString()

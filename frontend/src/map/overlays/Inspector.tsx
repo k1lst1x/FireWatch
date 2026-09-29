@@ -306,10 +306,10 @@ export function AnalysisBar({
                   type="button"
                   className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-[11px] text-zinc-300 hover:text-white hover:bg-white/10 transition-colors"
                   onClick={() => onSelectCamera(activeFeed)}
-                  title="Fly to Camera Station on 3D Map"
+                  title="Focus Camera Station on Map"
                 >
                   <Eye size={13} className="text-emerald-400" />
-                  <span>Fly Map</span>
+                  <span>Focus Map</span>
                 </button>
               )}
             </div>
