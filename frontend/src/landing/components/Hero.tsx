@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, type FormEvent, type RefObject } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowUpRight, Sparkles } from 'lucide-react'
-import { Embers, Hud, VideoMarkers } from './HeroFx'
+import { ArrowRight, Search } from 'lucide-react'
+import { Hud, TowerLock } from './HeroFx'
 import { Logo } from './bits'
 
 const NAV = [
   ['Signals', '#signals'],
-  ['Agent pipeline', '#pipeline'],
+  ['Pipeline', '#pipeline'],
   ['Federation', '#federation'],
   ['Dispatch', '#dispatch'],
 ] as const
@@ -15,23 +15,27 @@ export function Nav({ onJump }: { onJump: (hash: string) => void }) {
   const navigate = useNavigate()
   return (
     <nav className="fw-nav" data-nav>
-      <div className="mx-auto flex h-[76px] max-w-[1320px] items-center justify-between px-6 md:px-10">
+      <div className="mx-auto flex h-14 max-w-[1240px] items-center justify-between px-5 md:px-8">
         <a href="#top" onClick={e => { e.preventDefault(); onJump('#top') }} aria-label="FireWatch home">
           <Logo />
         </a>
-        <div className="hidden items-center gap-9 text-[14px] lg:flex">
+        <div className="hidden items-center gap-8 text-[13px] lg:flex">
           {NAV.map(([label, hash]) => (
             <a key={hash} href={hash} className="fw-link" onClick={e => { e.preventDefault(); onJump(hash) }}>
               {label}
             </a>
           ))}
         </div>
-        <div className="flex items-center gap-3">
-          <a className="fw-link hidden text-[14px] text-[var(--ash-2)] hover:text-[var(--ash)] sm:inline" href="https://github.com/zaf-07/FireWatch" target="_blank" rel="noreferrer">
+        <div className="flex items-center gap-2.5">
+          <a className="fw-link hidden text-[13px] sm:inline" href="https://github.com/zaf-07/FireWatch" target="_blank" rel="noreferrer">
             GitHub
           </a>
-          <button className="fw-btn fw-btn--light text-[14px]" data-magnetic onClick={() => navigate('/login')}>
-            Open Dispatch Console
+          <button className="fw-btn fw-btn--ghost text-[13px]" onClick={() => navigate('/login')}>
+            Sign in
+          </button>
+          <button className="fw-btn fw-btn--amber flex items-center gap-1.5" onClick={() => navigate('/dashboard')}>
+            <span>Launch 3D Map</span>
+            <ArrowRight size={14} />
           </button>
         </div>
       </div>
@@ -41,14 +45,18 @@ export function Nav({ onJump }: { onJump: (hash: string) => void }) {
 
 const PROMPTS = [
   'Is that smoke above the Oakland Hills?',
-  'Scan 37.634, -119.622 — Yosemite FIRMS hotspot',
-  'What is the spread risk on San Bruno Mountain tonight?',
-  'Check the Tahoe live camera at 38.9, -120.0',
+  'Scan 37.634, -119.622',
+  'Spread risk on San Bruno tonight?',
+  'Check the Tahoe camera at 38.9, -120.0',
 ]
 
 function useTypewriter(lines: string[]) {
   const [text, setText] = useState('')
   useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setText(lines[0])
+      return
+    }
     let line = 0
     let i = 0
     let deleting = false
@@ -60,51 +68,50 @@ function useTypewriter(lines: string[]) {
         setText(full.slice(0, i))
         if (i === full.length) {
           deleting = true
-          timer = window.setTimeout(step, 2400)
+          timer = window.setTimeout(step, 2600)
           return
         }
-        timer = window.setTimeout(step, 36 + Math.random() * 44)
+        timer = window.setTimeout(step, 34 + Math.random() * 40)
       } else {
         i -= 2
         setText(full.slice(0, Math.max(0, i)))
         if (i <= 0) {
           deleting = false
           line = (line + 1) % lines.length
-          timer = window.setTimeout(step, 400)
+          timer = window.setTimeout(step, 380)
           return
         }
-        timer = window.setTimeout(step, 16)
+        timer = window.setTimeout(step, 14)
       }
     }
-    timer = window.setTimeout(step, 1800)
+    timer = window.setTimeout(step, 1600)
     return () => window.clearTimeout(timer)
   }, [lines])
   return text
 }
 
 const CHIPS = [
-  { id: 'oakland', label: 'Oakland Hills spread risk', color: '#ff3b2f' },
-  { id: 'sanbruno', label: 'Smoke on San Bruno Mountain?', color: '#ff7a1a' },
-  { id: 'yosemite', label: 'Yosemite FIRMS hotspot', color: '#ffb020' },
+  'Oakland Hills spread risk',
+  'Smoke on San Bruno?',
+  'Yosemite FIRMS hotspot',
 ]
 
-/** Full-bleed 4K San Francisco drone plate: video, ember field, tracked incident markers, HUD. */
-export function HeroBackdrop({ videoRef, active }: { videoRef: RefObject<HTMLVideoElement | null>; active: string | null }) {
+/** Full-bleed 4K Golden Gate plate with the console's viewfinder chrome over it. */
+export function HeroBackdrop({ videoRef }: { videoRef: RefObject<HTMLVideoElement | null> }) {
   const frameRef = useRef<HTMLDivElement>(null)
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
     const v = videoRef.current
     if (!v) return
-    // 4K on wide, high-dpi displays; 1080p everywhere else. Sources are set here so we
-    // never download both, and so a data-saver connection keeps the poster only.
+    // 4K only on wide, high-DPI displays; 1080p everywhere else. Sources are set here so
+    // we never fetch both, and a data-saver connection keeps the poster alone.
     const conn = (navigator as { connection?: { saveData?: boolean } }).connection
     if (conn?.saveData) return
     const wide = window.matchMedia('(min-width: 1600px)').matches && (window.devicePixelRatio || 1) > 1.2
-    v.src = wide ? '/video/sf-flyover-2160.mp4' : '/video/sf-flyover-1080.mp4'
+    v.src = wide ? '/video/ggb-2160.mp4' : '/video/ggb-1080.mp4'
     v.load()
     const onReady = () => setLoaded(true)
-    // readyState may already be past HAVE_FUTURE_DATA by the time we subscribe
     if (v.readyState >= 3) onReady()
     v.addEventListener('canplay', onReady)
     v.addEventListener('loadeddata', onReady)
@@ -121,7 +128,7 @@ export function HeroBackdrop({ videoRef, active }: { videoRef: RefObject<HTMLVid
         ref={videoRef}
         className="fw-plate__video"
         style={{ opacity: loaded ? 1 : 0 }}
-        poster="/video/sf-flyover-poster.jpg"
+        poster="/video/ggb-poster.jpg"
         autoPlay
         muted
         loop
@@ -129,20 +136,19 @@ export function HeroBackdrop({ videoRef, active }: { videoRef: RefObject<HTMLVid
         preload="none"
         aria-hidden
       />
-      <div className="fw-plate__poster" style={{ opacity: loaded ? 0 : 1, backgroundImage: 'url(/video/sf-flyover-poster.jpg)' }} />
-      <div className="fw-plate__smoke" />
-      <div className="fw-plate__sweep" />
-      <div className="fw-plate__heat" />
-      <Embers />
-      <VideoMarkers video={videoRef} frame={frameRef} active={active} />
-      <div className="fw-plate__grade" />
+      <div
+        className="fw-plate__poster"
+        style={{ opacity: loaded ? 0 : 1, backgroundImage: 'url(/video/ggb-poster.jpg)' }}
+      />
       <div className="fw-plate__scrim" />
-      <Hud />
+      <div className="fw-plate__pass" />
+      <TowerLock video={videoRef} frame={frameRef} />
+      <Hud video={videoRef} />
     </div>
   )
 }
 
-export default function Hero({ focused, onFocus }: { focused: string | null; onFocus: (id: string | null) => void }) {
+export default function Hero() {
   const navigate = useNavigate()
   const placeholder = useTypewriter(PROMPTS)
   const [query, setQuery] = useState('')
@@ -153,57 +159,94 @@ export default function Hero({ focused, onFocus }: { focused: string | null; onF
   }
 
   return (
-    <section id="top" className="fw-section relative flex min-h-[100svh] flex-col items-center px-5 pt-[clamp(118px,17vh,180px)] text-center">
-      <div className="fw-kicker mb-6 flex items-center justify-center gap-2.5 text-[11px] text-[var(--ash-2)]" data-hero>
-        <span className="fw-live hidden shrink-0 sm:block" /> AI wildfire dispatch · San Francisco Bay Area
+    <section id="top" className="fw-section relative flex min-h-[100svh] flex-col px-5 pt-[clamp(120px,17vh,190px)] md:px-8">
+      {/* the bridge owns the left of the frame, so the copy takes the right half */}
+      <div className="mx-auto grid w-full max-w-[1240px] xl:grid-cols-[minmax(0,1fr)_minmax(0,560px)]">
+        <div className="hidden xl:block" aria-hidden />
+        <div className="max-w-[560px]">
+          <div className="flex items-center gap-2.5" data-hero>
+            <span className="fw-dot fw-dot--ok" />
+            <span className="lbl">NASA FIRMS + Google Photorealistic 3D Tiles Engine</span>
+          </div>
+
+          <h1 className="mt-5 text-[clamp(36px,4.4vw,58px)] font-medium leading-[1.04] tracking-[-0.035em] [text-shadow:0_2px_30px_rgba(0,0,0,0.6)]">
+            <span className="block" data-hero-line>
+              Real-Time Telemetry.
+            </span>
+            <span className="block" data-hero-line>
+              3D Digital Twin.
+            </span>
+            <span className="block text-[#ff9d42]" data-hero-line>
+              Zero Latency Defense.
+            </span>
+          </h1>
+
+          <p className="fw-lead mt-6 max-w-[540px] [text-shadow:0_1px_16px_rgba(0,0,0,0.7)]" data-hero>
+            FireWatch fuses live orbital NASA FIRMS radiometry with Google's Photorealistic 3D mesh
+            to project volumetric fire beams directly into tactical incident command centers.
+          </p>
+
+          <div className="mt-8 flex flex-wrap items-center gap-3" data-hero>
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="fw-btn fw-btn--amber flex items-center gap-2 !px-6 !py-3.5 text-[14px]"
+            >
+              <span>Launch Full 3D Map</span>
+              <ArrowRight size={16} />
+            </button>
+            <a
+              href="#pipeline"
+              className="fw-btn fw-btn--ghost !px-5 !py-3.5 text-[14px]"
+            >
+              System Specs
+            </a>
+          </div>
+
+          <form onSubmit={submit} className="fw-ask mt-6" data-hero>
+            <Search size={15} className="shrink-0 text-[var(--txt-3)]" />
+            <input
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder={placeholder || ' '}
+              aria-label="Ask FireWatch about a location"
+            />
+            <button type="submit" className="fw-ask__send" aria-label="Open in the dispatch console">
+              <ArrowRight size={16} strokeWidth={2.2} />
+            </button>
+          </form>
+
+          <div className="mt-3 flex flex-wrap gap-2" data-hero>
+            {CHIPS.map(c => (
+              <button
+                key={c}
+                className="fw-chip"
+                onClick={() => navigate('/dashboard', { state: { query: c } })}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
-      <h1 className="text-[clamp(46px,7.4vw,112px)] font-semibold leading-[0.96] tracking-[-0.045em] [text-shadow:0_4px_40px_rgba(0,0,0,0.5)]">
-        <span className="block" data-hero-line>Every spark, seen</span>
-        <span className="block pb-2" data-hero-line>
-          <span className="ember-text">before it </span>
-          <span className="serif ember-text pr-2">spreads.</span>
-        </span>
-      </h1>
-      <p className="fw-lead mt-6 max-w-[620px] [text-shadow:0_2px_20px_rgba(0,0,0,0.6)]" data-hero>
-        FireWatch fuses live ALERTWest cameras, NASA FIRMS satellite hotspots and weather into one dispatch-ready call,
-        and gets sharper every time a dispatcher says yes or no.
-      </p>
 
-      <form onSubmit={submit} className="fw-ask mt-9" data-hero>
-        <Sparkles size={18} className="shrink-0 text-[var(--flame)]" />
-        <input
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          placeholder={placeholder || ' '}
-          aria-label="Ask FireWatch about a location"
-        />
-        <button type="submit" className="fw-ask__send" aria-label="Open in the dispatch console">
-          <ArrowUpRight size={20} strokeWidth={2.4} />
-        </button>
-      </form>
-
-      <div className="mt-5 flex flex-wrap justify-center gap-2.5" data-hero>
-        {CHIPS.map(c => (
-          <button
-            key={c.id}
-            className={`fw-chip ${focused === c.id ? 'is-active' : ''}`}
-            onMouseEnter={() => onFocus(c.id)}
-            onMouseLeave={() => onFocus(null)}
-            onClick={() => navigate('/login', { state: { query: c.label } })}
-          >
-            <span className="dot" style={{ background: c.color, color: c.color }} />
-            {c.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-auto flex w-full max-w-[1320px] items-end justify-center gap-6 pb-10 pt-16" data-hero>
-        <button className="group flex flex-col items-center gap-2 text-[11px] uppercase tracking-[0.25em] text-[var(--ash-3)] transition-colors hover:text-[var(--ash)]" onClick={() => document.getElementById('signals')?.scrollIntoView()}>
-          Scroll
-          <span className="relative block h-10 w-px overflow-hidden bg-white/15">
-            <span className="absolute inset-x-0 top-0 h-1/2 animate-[fw-scan_1.8s_ease-in-out_infinite] bg-gradient-to-b from-transparent via-[var(--ember)] to-transparent" />
+      {/* reads like the console's own status bar, because it is the same three facts */}
+      <div className="mt-auto border-t border-[rgba(255,255,255,0.12)]" data-hero>
+        <div className="mx-auto flex max-w-[1240px] flex-wrap items-center gap-x-7 gap-y-2 py-3.5">
+          {[
+            ['ok', 'Sources', 'Camera · satellite · weather'],
+            ['ok', 'Agents', 'Eight per run, timed'],
+            ['amber', 'Dispatch', 'Never without a human'],
+          ].map(([dot, k, v]) => (
+            <span key={k} className="flex items-center gap-2">
+              <span className={`fw-dot fw-dot--${dot}`} />
+              <span className="lbl">{k}</span>
+              <span className="mono text-[11px] text-[var(--txt-2)]">{v}</span>
+            </span>
+          ))}
+          <span className="mono ml-auto hidden text-[11px] tracking-[0.12em] text-[var(--txt-3)] lg:block">
+            37.8199° N · 122.4783° W
           </span>
-        </button>
+        </div>
       </div>
     </section>
   )

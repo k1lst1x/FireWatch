@@ -33,6 +33,8 @@ export interface Incident {
   status: 'dismissed' | 'pending_review' | 'approved' | 'rejected'
   criticality: Criticality | null
   combined_score: number
+  frp?: number
+  confidence?: number
   reviewer_note: string | null
   created_at: string | null
   reviewed_at: string | null
