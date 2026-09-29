@@ -1,4 +1,4 @@
-import { Shield, Sun, Moon, LogOut } from 'lucide-react'
+import { Shield, Sun, Moon, Home } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import { useNavigate } from 'react-router-dom'
 
@@ -19,9 +19,8 @@ export default function Header() {
         </div>
         <div className="flex items-center gap-2">
           <span className={`text-sm font-bold tracking-wide ${dark ? 'text-white' : 'text-gray-900'}`}>
-            WILDFIRE WATCH
+            FireWatch
           </span>
-          <span className="text-sm font-bold text-brand">MVP</span>
         </div>
         <div className="flex items-center gap-1.5 ml-3">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -44,27 +43,19 @@ export default function Header() {
           {dark ? 'Light' : 'Dark'}
         </button>
 
-        <div className="flex items-center gap-2.5">
-          <div className="text-right">
-            <p className={`text-[10px] uppercase tracking-wider ${dark ? 'text-gray-500' : 'text-gray-400'}`}>
-              Battalion Chief
-            </p>
-            <p className={`text-xs font-medium ${dark ? 'text-white' : 'text-gray-900'}`}>
-              Khoi Duong
-            </p>
-          </div>
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-white text-xs font-bold">
-            K
-          </div>
-        </div>
+        <p className={`text-xs font-medium ${dark ? 'text-white' : 'text-gray-900'}`}>
+          Dispatcher
+        </p>
 
         <button
           onClick={() => navigate('/')}
+          title="Back to landing page"
+          aria-label="Back to landing page"
           className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
             dark ? 'text-gray-500 hover:text-white hover:bg-[#1a1a1a]' : 'text-gray-400 hover:text-gray-900 hover:bg-gray-100'
           }`}
         >
-          <LogOut className="h-4 w-4" />
+          <Home className="h-4 w-4" />
         </button>
       </div>
     </header>
