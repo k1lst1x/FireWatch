@@ -75,7 +75,7 @@ def test_label_from_incident():
 @pytest.mark.slow
 def test_flower_simulation_end_to_end(tmp_path):
     state = tmp_path / "state.json"
-    env = {**os.environ, "PYTHONPATH": str(ROOT / "gateway"), "FEDERATION_STATE_PATH": str(state)}
+    env = {**os.environ, "PYTHONPATH": str(ROOT / "backend"), "FEDERATION_STATE_PATH": str(state)}
     subprocess.run([sys.executable, "scripts/seed_labels.py"], cwd=ROOT, env=env, check=True, capture_output=True)
     r = subprocess.run([sys.executable, "-m", "app.federation.run", "--rounds", "3"], cwd=ROOT, env=env, capture_output=True, text=True, timeout=600)
     assert r.returncode == 0, r.stdout[-2000:] + r.stderr[-2000:]

@@ -6,7 +6,7 @@ import os
 import pathlib
 import sys
 
-GATEWAY = pathlib.Path(__file__).resolve().parents[2]
+BACKEND = pathlib.Path(__file__).resolve().parents[2]
 
 
 def main() -> None:
@@ -16,10 +16,10 @@ def main() -> None:
     a = ap.parse_args()
 
     os.environ["FEDERATION_ROUNDS"] = str(a.rounds)
-    paths = [str(GATEWAY)] + [p for p in os.environ.get("PYTHONPATH", "").split(os.pathsep) if p]
+    paths = [str(BACKEND)] + [p for p in os.environ.get("PYTHONPATH", "").split(os.pathsep) if p]
     os.environ["PYTHONPATH"] = os.pathsep.join(dict.fromkeys(paths))
-    if str(GATEWAY) not in sys.path:
-        sys.path.insert(0, str(GATEWAY))
+    if str(BACKEND) not in sys.path:
+        sys.path.insert(0, str(BACKEND))
 
     from flwr.simulation import run_simulation
 

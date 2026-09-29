@@ -16,7 +16,7 @@ from app.federation.state import load_state, refresh_label_counts, reset_state
 
 router = APIRouter(prefix="/federation", tags=["federation"])
 
-GATEWAY = pathlib.Path(__file__).resolve().parents[2]
+BACKEND = pathlib.Path(__file__).resolve().parents[2]
 _lock = asyncio.Lock()
 
 
@@ -42,14 +42,14 @@ async def export_dispatcher_labels(db: AsyncSession) -> dict[str, int]:
 
 
 async def run_flower(rounds: int) -> str:
-    env = {**os.environ, "PYTHONPATH": os.pathsep.join([str(GATEWAY), os.environ.get("PYTHONPATH", "")])}
+    env = {**os.environ, "PYTHONPATH": os.pathsep.join([str(BACKEND), os.environ.get("PYTHONPATH", "")])}
     proc = await asyncio.create_subprocess_exec(
         sys.executable,
         "-m",
         "app.federation.run",
         "--rounds",
         str(rounds),
-        cwd=str(GATEWAY.parent),
+        cwd=str(BACKEND.parent),
         env=env,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.STDOUT,

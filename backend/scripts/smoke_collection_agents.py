@@ -1,8 +1,8 @@
 """Live smoke test for Camera, Satellite, and Weather agents.
 
-Run from repo root (``uv run`` so ``gateway`` is on PYTHONPATH):
+Run from repo root (``uv run`` so ``backend`` is on PYTHONPATH):
 
-  uv run python gateway/scripts/smoke_collection_agents.py --lat 37.8 --lon -122.4
+  uv run python backend/scripts/smoke_collection_agents.py --lat 37.8 --lon -122.4
 
 Env knobs (accuracy / speed / cost), see ``app/config.py``:
   COLLECTION_HTTP_MAX_ATTEMPTS — fewer = faster, less retry cost

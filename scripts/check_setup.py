@@ -10,7 +10,7 @@ import sys
 import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "gateway"))
+sys.path.insert(0, str(ROOT / "backend"))
 os.chdir(ROOT)
 
 import httpx

@@ -23,16 +23,20 @@ def _env_float(name: str, default: float) -> float:
 
 class Settings:
     # Gateway
-    secret_key: str = os.getenv("SECRET_KEY") or "dev-secret-change-me"
-    algorithm: str = os.getenv("ALGORITHM") or "HS256"
-    access_token_expire_minutes: int = _env_int("ACCESS_TOKEN_EXPIRE_MINUTES", 720)
+    secret_key: str = os.getenv("SECRET_KEY", "change-me-before-production")
+    algorithm: str = os.getenv("ALGORITHM", "HS256")
+    access_token_expire_minutes: int = _env_int("ACCESS_TOKEN_EXPIRE_MINUTES", 60)
     auth_required: bool = os.getenv("AUTH_REQUIRED", "false").lower() == "true"
 
     # CORS
-    cors_origin: str = os.getenv("CORS_ORIGIN") or "http://localhost:5173,http://localhost:3000"
+    cors_origins: list[str] = [
+        origin.strip()
+        for origin in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+        if origin.strip()
+    ]
 
     # DATABASE
-    database_url: str = os.getenv("DATABASE_URL") or "sqlite+aiosqlite:///./bayhawk.db"
+    database_url: str = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./firewatch.db")
 
     # ── AI pipeline ────────────────────────────────────────────────────────────
     # Vision-language model (OpenAI)
@@ -106,6 +110,8 @@ class Settings:
             raise ValueError("COLLECTION_HTTP_MAX_ATTEMPTS must be >= 1")
         if self.yolo_inference_imgsz < 32:
             raise ValueError("YOLO_INFERENCE_IMGSZ must be >= 32")
+        if self.access_token_expire_minutes < 1:
+            raise ValueError("ACCESS_TOKEN_EXPIRE_MINUTES must be >= 1")
 
 
 settings = Settings()

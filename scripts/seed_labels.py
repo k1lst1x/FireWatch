@@ -6,7 +6,7 @@ import random
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "gateway"))
+sys.path.insert(0, str(ROOT / "backend"))
 
 from app.federation.feedback import STATIONS_DIR, DEFAULT_PARAMS, evaluate
 

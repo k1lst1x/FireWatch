@@ -22,20 +22,22 @@ async def lifespan(app: FastAPI):
     await init_db()
     status = integration_status()
     for name, info in status["integrations"].items():
-        logging.getLogger("bayhawk").info("%-16s %s", name, "LIVE" if info.get("live") else "fallback")
+        logging.getLogger("firewatch").info("%-16s %s", name, "LIVE" if info.get("live") else "fallback")
     yield
 
 
-app = FastAPI(title="BayHawk API", version="2.0.0", lifespan=lifespan)
-
+app = FastAPI(
+    title="FireWatch API",
+    version="0.1.0",
+    lifespan=lifespan,
+)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in settings.cors_origin.split(",") if o.strip()],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 app.include_router(auth_router)
 app.include_router(ai_router)
 app.include_router(federation_router)

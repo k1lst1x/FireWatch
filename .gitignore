@@ -167,6 +167,6 @@ models/*.onnx
 replay/
 frontend/dist/
 node_modules/
-gateway/data/federation_state.json
-gateway/data/stations/*/dispatcher.jsonl
+backend/data/federation_state.json
+backend/data/stations/*/dispatcher.jsonl
 !frontend/src/lib/

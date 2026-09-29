@@ -8,7 +8,6 @@ from jose import JWTError, jwt
 #HTTPException: how FastAPI sends an error response back to the client. 
 #status is just a collection of named HTTP status codes
 from fastapi import HTTPException, status
-from pydantic_core import to_json
 from app.config import settings
 
 #define the secret key and algorithm for the JWT

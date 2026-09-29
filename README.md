@@ -1,18 +1,39 @@
-# FIreWatch
- AI-driven wildfire detection and emergency response platform that analyzes live camera footage, satellite heat signatures, and weather data to identify wildfires, evaluate their severity, and recommend appropriate response actions.
+# FireWatch
 
-## Quick start
+AI-driven wildfire detection and emergency response platform. It combines camera
+footage, NASA FIRMS satellite hotspots, and weather data to assess potential fires.
+
+## Local setup
 
 ```bash
-uv sync --dev
-./scripts/get_weights.sh
 cp .env.example .env
+uv sync --dev
+./scripts/get_weights.sh                       # fire/smoke YOLOv8 weights
+uv run python scripts/seed_labels.py           # station history for federated learning
 uv run python scripts/check_setup.py --find-fires
-PYTHONPATH=gateway uv run uvicorn app.main:app --port 8000
-cd frontend && npm install && npm run dev
+uv run uvicorn app.main:app --app-dir backend --reload
 ```
 
-Open http://localhost:5173 → Sign in → pick a location + image → **Run Analysis** → **Dispatch** or **False alarm**.
+Frontend (second terminal): `cd frontend && npm install && npm run dev`, then open http://localhost:5173 → Sign in → pick a location + image → **Run Analysis** → **Dispatch** or **False alarm**.
+
+The API is then available at `http://localhost:8000`, with interactive docs at
+`http://localhost:8000/docs`.
+
+To enable NASA FIRMS, open the local `.env` file and set:
+
+```dotenv
+NASA_FIRMS_MAP_KEY=your-personal-map-key
+```
+
+`.env` is intentionally ignored by Git, so the key will not be committed.
+
+## Tests
+
+```bash
+uv run pytest
+```
+
+## Integrations and fallbacks
 
 Every key is optional; each agent falls back instead of failing:
 
@@ -35,12 +56,12 @@ New endpoints: `GET /ai/status`, `GET /ai/incidents`, `POST /ai/incidents/{id}/r
 
 ## Federated learning (Flower)
 
-Three stations (North Bay, Sierra, SoCal) each run a Flower ClientApp on their own label file in `gateway/data/stations/<id>/`. Every Dispatch / False-alarm click becomes a label for the station the incident falls in. Each round, stations tune their 3 fusion settings locally (camera weight, fusion threshold, thermal-only threshold) and the ServerApp averages them with FedAvg, weighted by label count. Only settings and counts leave a station — never images.
+Three stations (North Bay, Sierra, SoCal) each run a Flower ClientApp on their own label file in `backend/data/stations/<id>/`. Every Dispatch / False-alarm click becomes a label for the station the incident falls in. Each round, stations tune their 3 fusion settings locally (camera weight, fusion threshold, thermal-only threshold) and the ServerApp averages them with FedAvg, weighted by label count. Only settings and counts leave a station — never images.
 
 ```bash
 uv run python scripts/seed_labels.py                                   # simulated history per station
-PYTHONPATH=gateway uv run python -m app.federation.run --rounds 3 --reset
+PYTHONPATH=backend uv run python -m app.federation.run --rounds 3 --reset
 ```
-PowerShell: `$env:PYTHONPATH="gateway"; uv run python -m app.federation.run --rounds 3 --reset`
+PowerShell: `$env:PYTHONPATH="backend"; uv run python -m app.federation.run --rounds 3 --reset`
 
 API: `GET /federation/status`, `POST /federation/round` (`{"rounds": 1}`), `POST /federation/reset`. The fusion agent uses the latest global settings automatically (`FEDERATED_FUSION=true`).
