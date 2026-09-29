@@ -10,6 +10,8 @@ California falls entirely within valid bounds for this product.
 from __future__ import annotations
 
 import hashlib
+import csv
+import io
 import logging
 import time
 from typing import Any
@@ -22,7 +24,7 @@ from app.services.ai.schemas.pipeline import SatelliteResult
 from .base import BaseAgent
 from .collection_cache import get_named_cache
 from .geo_hints import log_if_outside_california
-from .http_retry import httpx_get_json
+from .http_retry import httpx_get_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -96,12 +98,18 @@ class SatelliteAgent(BaseAgent):
         west, south, east, north = lon - bbox_half, lat - bbox_half, lon + bbox_half, lat + bbox_half
         bbox = f"{west},{south},{east},{north}"
         url = (
-            f"https://firms.modaps.eosdis.nasa.gov/api/area/json/"
+            f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/"
             f"{settings.nasa_firms_map_key}/VIIRS_SNPP_NRT/{bbox}/1"
         )
 
         try:
-            data = await httpx_get_json(url, timeout=18.0, max_attempts=max_attempts, label="nasa_firms")
+            response_bytes = await httpx_get_bytes(
+                url,
+                timeout=18.0,
+                max_attempts=max_attempts,
+                label="nasa_firms",
+            )
+            hotspots = list(csv.DictReader(io.StringIO(response_bytes.decode("utf-8-sig"))))
         except httpx.HTTPError as exc:
             logger.warning("NASA FIRMS HTTP error: %s", exc)
             return SatelliteResult(
@@ -121,9 +129,6 @@ class SatelliteAgent(BaseAgent):
                 telemetry={"http_max_attempts": max_attempts, "bbox_half_deg": bbox_half},
             )
 
-        hotspots = data if isinstance(data, list) else data.get("data", [])
-        if not isinstance(hotspots, list):
-            hotspots = []
         hotspot_detected = len(hotspots) > 0
         thermal_confidence = 0.0
 
