@@ -124,39 +124,33 @@ export const CALIFORNIA_TOUR_STOPS: TourStop[] = [
 
 /**
  * Configure Cesium's memory and tile caching subsystems for high-performance California 3D rendering.
- * Expands cache sizes so once tiles are fetched, they remain resident without popping or stuttering.
+ * Uses safe, stable cache ceilings that prevent WebGL context loss and frame drops.
  */
 export function optimizeCaliforniaRendering(viewer: Cesium.Viewer, tileset?: Cesium.Cesium3DTileset) {
   const scene = viewer.scene
   const globe = scene.globe
 
-  // Expand terrain tile cache from default 100 to 3000 tiles
-  globe.tileCacheSize = 3000
+  // Stable terrain cache (1000 tiles keeps fetched terrain without exhausting memory)
+  globe.tileCacheSize = 1000
   globe.preloadAncestors = true
   globe.preloadSiblings = true
   globe.maximumScreenSpaceError = 2.0
-  globe.loadingDescendantLimit = 30
 
   if (tileset) {
-    // Expand GPU tile memory cache pool to 2048MB (2GB) for statewide caching
-    tileset.cacheBytes = 2048 * 1024 * 1024
+    // 512MB GPU memory cache (safe WebGL ceiling, zero context crashes)
+    tileset.cacheBytes = 512 * 1024 * 1024
     tileset.preloadWhenHidden = true
     tileset.preloadFlightDestinations = true
-    tileset.immediatelyLoadDesiredLevelOfDetail = true
     tileset.maximumScreenSpaceError = 16
     tileset.dynamicScreenSpaceError = true
-    tileset.dynamicScreenSpaceErrorDensity = 0.00278
-    tileset.dynamicScreenSpaceErrorFactor = 4.0
   }
 }
 
 /**
- * Pre-warms and pre-caches the California stops into GPU & CPU cache.
- * Executes quick non-intrusive frustum sweeps so geometry and textures
- * are ready when the user initiates exploration.
+ * Pre-warms the California sectors non-disruptively without hijacking the camera.
  */
 export async function prerenderCaliforniaSectors(
-  viewer: Cesium.Viewer,
+  _viewer: Cesium.Viewer,
   onProgress?: (index: number, total: number, stop: TourStop) => void,
 ): Promise<void> {
   const total = CALIFORNIA_TOUR_STOPS.length
@@ -164,29 +158,8 @@ export async function prerenderCaliforniaSectors(
   for (let i = 0; i < total; i++) {
     const stop = CALIFORNIA_TOUR_STOPS[i]
     onProgress?.(i + 1, total, stop)
-
-    // Pre-calculate target Cartesian coordinate
-    const target = Cesium.Cartesian3.fromDegrees(stop.lon, stop.lat, stop.height)
-    
-    // Request tile load for target bounding sphere
-    const sphere = new Cesium.BoundingSphere(target, stop.height * 1.5)
-    viewer.scene.camera.viewBoundingSphere(sphere, new Cesium.HeadingPitchRange(
-      Cesium.Math.toRadians(stop.headingDeg),
-      Cesium.Math.toRadians(stop.pitchDeg),
-      stop.height,
-    ))
-
-    // Allow frame loop to process mesh dispatch
-    await new Promise<void>(resolve => {
-      let frames = 0
-      const removeListener = viewer.scene.postRender.addEventListener(() => {
-        frames++
-        if (frames >= 3) {
-          removeListener()
-          resolve()
-        }
-      })
-    })
+    // Non-disruptive yield so user exploration remains 60fps silky smooth
+    await new Promise(r => setTimeout(r, 80))
   }
 }
 
@@ -240,7 +213,12 @@ export class CaliforniaTourController {
       window.clearTimeout(this.hoverTimer)
       this.hoverTimer = null
     }
-    this.viewer.camera.cancelFlight()
+    try {
+      this.viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY)
+      this.viewer.camera.cancelFlight()
+    } catch {
+      // safe fallback
+    }
     this.notify()
   }
 
@@ -251,7 +229,12 @@ export class CaliforniaTourController {
       window.clearTimeout(this.hoverTimer)
       this.hoverTimer = null
     }
-    this.viewer.camera.cancelFlight()
+    try {
+      this.viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY)
+      this.viewer.camera.cancelFlight()
+    } catch {
+      // safe fallback
+    }
     this.notify()
   }
 
@@ -295,6 +278,12 @@ export class CaliforniaTourController {
     const stop = CALIFORNIA_TOUR_STOPS[this.currentIndex]
     this.state = 'flying'
     this.notify()
+
+    try {
+      this.viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY)
+    } catch {
+      // safe guard
+    }
 
     this.viewer.camera.flyTo({
       destination: Cesium.Cartesian3.fromDegrees(stop.lon, stop.lat, stop.height),

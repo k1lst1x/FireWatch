@@ -141,6 +141,11 @@ export function applyCinematicStyle(viewer: Cesium.Viewer) {
  */
 export function executeIsometricCameraLock(viewer: Cesium.Viewer) {
   const v = CONFIG.initialView
+  try {
+    viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY)
+  } catch {
+    // safe guard
+  }
   viewer.camera.flyTo({
     destination: Cesium.Cartesian3.fromDegrees(
       v.longitude,

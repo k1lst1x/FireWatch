@@ -94,6 +94,34 @@ export default function CityMap({
     frameDowntown(viewer)
     layerRef.current = new FireLayer(viewer)
 
+    // Guard against uncaught rendering errors so single asset faults never kill rendering
+    viewer.scene.renderError.addEventListener((_scene, error) => {
+      console.warn('[Cesium Engine Guard] Handled transient render event:', error)
+    })
+
+    // Configure silky-smooth camera controls with collision limits
+    const ssc = viewer.scene.screenSpaceCameraController
+    ssc.enableRotate = true
+    ssc.enableTranslate = true
+    ssc.enableZoom = true
+    ssc.enableTilt = true
+    ssc.enableLook = true
+    ssc.inertiaSpin = 0.85
+    ssc.inertiaTranslate = 0.85
+    ssc.inertiaZoom = 0.8
+    ssc.minimumZoomDistance = 30.0
+    ssc.maximumZoomDistance = 8000000.0
+
+    // When the user starts manual navigation with mouse/touch, pause tour cleanly
+    const canvas = viewer.scene.canvas
+    const pauseOnInteraction = () => {
+      if (tourRef.current?.isActive() && tourRef.current.getState() !== 'paused') {
+        tourRef.current.pause()
+      }
+    }
+    canvas.addEventListener('pointerdown', pauseOnInteraction, { passive: true })
+    canvas.addEventListener('wheel', pauseOnInteraction, { passive: true })
+
     // Instantiate California Tour & Autopilot Controller
     const controller = new CaliforniaTourController(viewer)
     tourRef.current = controller
@@ -141,6 +169,8 @@ export default function CityMap({
 
     return () => {
       signal.cancelled = true
+      canvas.removeEventListener('pointerdown', pauseOnInteraction)
+      canvas.removeEventListener('wheel', pauseOnInteraction)
       controller.stop()
       handler.destroy()
       layerRef.current?.destroy()
@@ -199,6 +229,12 @@ export default function CityMap({
   useEffect(() => {
     const viewer = viewerRef.current
     if (!viewer || !ready || autoTour) return
+
+    try {
+      viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY)
+    } catch {
+      // safe guard
+    }
 
     if (cameraMode === 'california') {
       viewer.camera.flyTo({
