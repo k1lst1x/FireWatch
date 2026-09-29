@@ -19,9 +19,16 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="API Gateway",
+    title="FireWatch API",
     version="0.1.0",
     lifespan=lifespan,
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 app.include_router(auth_router)
 app.include_router(ai_router)

@@ -1,0 +1,15 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: dockerfile
+    env_file: .env
+    environment:
+      DATABASE_URL: sqlite+aiosqlite:///./data/firewatch.db
+    ports:
+      - "8000:8000"
+    volumes:
+      - firewatch-data:/app/data
+
+volumes:
+  firewatch-data:

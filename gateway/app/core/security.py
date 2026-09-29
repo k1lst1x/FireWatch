@@ -1,1 +1,0 @@
-#security for the api gateway
