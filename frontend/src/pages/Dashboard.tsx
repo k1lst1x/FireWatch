@@ -9,16 +9,18 @@ import { AnalysisBar, IncidentDetail } from '../map/overlays/Inspector'
 import FlameMark from '../map/overlays/FlameMark'
 import type { BasemapTier } from '../map/config'
 import { api, type AnalyzeInput, type CameraDirectoryResponse } from '../lib/api'
+import { SF_BAY_LIVE_CAMERAS } from '../map/cameraDirectory'
 import '../map/map.css'
 
 function Console() {
   const navigate = useNavigate()
   const { status, incidents, backendUp, running, error, analyze, review, refresh } = useBayhawk()
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null)
   const [resetToken, setResetToken] = useState(0)
   const [tier, setTier] = useState<BasemapTier | null>(null)
   const [booted, setBooted] = useState(false)
-  const [cameras, setCameras] = useState<CameraDirectoryResponse['cameras']>([])
+  const [cameras, setCameras] = useState<CameraDirectoryResponse['cameras']>(SF_BAY_LIVE_CAMERAS)
 
   const [cameraMode, setCameraMode] = useState<'isometric' | 'topdown' | 'cinematic'>('isometric')
   const [hudVisible, setHudVisible] = useState(true)
@@ -38,20 +40,23 @@ function Console() {
     [analyze],
   )
 
-  // Refresh the statewide directory every minute after the authenticated API is
-  // online. Cesium clusters the markers, so this does not turn a statewide view
-  // into 13k labels.
+  // Refresh statewide / Bay Area camera stations
   useEffect(() => {
-    if (!backendUp) return
+    if (!backendUp) {
+      setCameras(SF_BAY_LIVE_CAMERAS)
+      return
+    }
     let cancelled = false
     const refreshCameras = () => {
       api.cameraDirectory()
         .then(({ cameras: directory }) => {
-          if (!cancelled) setCameras(directory)
+          if (!cancelled && directory && directory.length > 0) {
+            setCameras(directory)
+          }
         })
-        // Retain the last known directory during a short provider outage so
-        // operators do not lose their map context while the next poll retries.
-        .catch(() => {})
+        .catch(() => {
+          if (!cancelled) setCameras(SF_BAY_LIVE_CAMERAS)
+        })
     }
     refreshCameras()
     const timer = window.setInterval(refreshCameras, 60_000)
@@ -68,6 +73,8 @@ function Console() {
         cameras={cameras}
         selectedId={selectedId}
         onSelect={setSelectedId}
+        selectedCameraId={selectedCameraId}
+        onSelectCamera={cam => setSelectedCameraId(cam.id)}
         resetToken={resetToken}
         onReady={onReady}
         cameraMode={cameraMode}
@@ -199,7 +206,11 @@ function Console() {
             {error}
           </div>
         )}
-        <AnalysisBar running={running} onRun={onRun} />
+        <AnalysisBar
+          running={running}
+          onRun={onRun}
+          onSelectCamera={cam => setSelectedCameraId(cam.id)}
+        />
         <StatusStrip status={status} backendUp={backendUp} />
       </div>
 

@@ -16,27 +16,8 @@ export class CameraLayer {
 
   constructor(viewer: Cesium.Viewer) {
     this.viewer = viewer
-    this.source.clustering.enabled = true
-    this.source.clustering.pixelRange = 42
-    this.source.clustering.minimumClusterSize = 3
-    this.source.clustering.clusterBillboards = true
-    this.source.clustering.clusterLabels = false
-    this.source.clustering.clusterPoints = false
-    this.source.clustering.clusterEvent.addEventListener((clustered, cluster) => {
-      cluster.billboard.show = false
-      cluster.label.show = true
-      cluster.label.text = String(clustered.length)
-      cluster.label.font = '600 12px system-ui'
-      cluster.label.fillColor = Cesium.Color.WHITE
-      cluster.label.outlineColor = Cesium.Color.fromCssColorString('#092a25')
-      cluster.label.outlineWidth = 3
-      cluster.label.style = Cesium.LabelStyle.FILL_AND_OUTLINE
-      cluster.label.showBackground = true
-      cluster.label.backgroundColor = Cesium.Color.fromCssColorString('#0c5e51').withAlpha(0.92)
-      cluster.label.backgroundPadding = new Cesium.Cartesian2(8, 5)
-      cluster.label.verticalOrigin = Cesium.VerticalOrigin.CENTER
-      cluster.label.disableDepthTestDistance = Number.POSITIVE_INFINITY
-    })
+    // Keep individual station pins visible across San Francisco and the Bay
+    this.source.clustering.enabled = false
     void this.viewer.dataSources.add(this.source)
   }
 
@@ -45,22 +26,34 @@ export class CameraLayer {
 
     for (const camera of cameras) {
       if (!Number.isFinite(camera.lat) || !Number.isFinite(camera.lon)) continue
+      const stationTitle = camera.name.split('·')[0].trim()
+
       this.source.entities.add({
         id: `camera:${camera.id}`,
         name: camera.name,
-        position: Cesium.Cartesian3.fromDegrees(camera.lon, camera.lat, 18),
+        position: Cesium.Cartesian3.fromDegrees(camera.lon, camera.lat, 35),
         properties: {
           cameraId: camera.id,
           imageUrl: camera.image_url,
+          videoUrl: (camera as any).video_url,
         },
         billboard: {
           image: CAMERA_MARK,
-          width: 18,
-          height: 18,
+          width: 30,
+          height: 30,
           verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-          // Keep the statewide layer visible in the California overview; nearby
-          // clusters expand naturally as operators fly closer to an area.
-          scaleByDistance: new Cesium.NearFarScalar(8_000, 1, 900_000, 0.55),
+          scaleByDistance: new Cesium.NearFarScalar(1_000, 1.15, 80_000, 0.75),
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        },
+        label: {
+          text: `● ${stationTitle}`,
+          font: 'bold 11px Inter, system-ui, sans-serif',
+          fillColor: Cesium.Color.WHITE,
+          outlineColor: Cesium.Color.fromCssColorString('#031c15'),
+          outlineWidth: 3,
+          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+          pixelOffset: new Cesium.Cartesian2(0, 16),
+          distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 40_000),
           disableDepthTestDistance: Number.POSITIVE_INFINITY,
         },
       })
@@ -75,30 +68,50 @@ export class CameraLayer {
 
 function createCameraMark(): HTMLCanvasElement {
   const canvas = document.createElement('canvas')
-  canvas.width = 48
-  canvas.height = 48
+  canvas.width = 64
+  canvas.height = 64
   const ctx = canvas.getContext('2d')!
 
-  ctx.fillStyle = 'rgba(6, 34, 31, 0.94)'
-  ctx.strokeStyle = '#40e0c0'
+  // Glowing shadow
+  ctx.shadowColor = 'rgba(16, 185, 129, 0.75)'
+  ctx.shadowBlur = 8
+
+  // Outer circle badge
+  ctx.fillStyle = 'rgba(4, 28, 22, 0.95)'
+  ctx.strokeStyle = '#10b981'
   ctx.lineWidth = 3
   ctx.beginPath()
-  ctx.arc(24, 24, 17, 0, Math.PI * 2)
+  ctx.arc(32, 32, 22, 0, Math.PI * 2)
   ctx.fill()
   ctx.stroke()
 
-  ctx.fillStyle = '#d8fff5'
-  ctx.fillRect(15, 19, 15, 11)
+  ctx.shadowBlur = 0
+
+  // Camera Body
+  ctx.fillStyle = '#ffffff'
   ctx.beginPath()
-  ctx.moveTo(30, 21)
-  ctx.lineTo(36, 17)
-  ctx.lineTo(36, 32)
-  ctx.lineTo(30, 28)
+  ctx.roundRect ? ctx.roundRect(19, 24, 17, 14, 3) : ctx.rect(19, 24, 17, 14)
+  ctx.fill()
+
+  // Camera Lens
+  ctx.beginPath()
+  ctx.moveTo(38, 27)
+  ctx.lineTo(46, 21)
+  ctx.lineTo(46, 39)
+  ctx.lineTo(38, 33)
   ctx.closePath()
   ctx.fill()
-  ctx.fillStyle = '#0c5e51'
+
+  // Inner lens pupil
+  ctx.fillStyle = '#10b981'
   ctx.beginPath()
-  ctx.arc(22.5, 24.5, 3.5, 0, Math.PI * 2)
+  ctx.arc(27.5, 31, 3.5, 0, Math.PI * 2)
+  ctx.fill()
+
+  // Live Red Indicator LED
+  ctx.fillStyle = '#ef4444'
+  ctx.beginPath()
+  ctx.arc(45, 17, 4.5, 0, Math.PI * 2)
   ctx.fill()
 
   return canvas

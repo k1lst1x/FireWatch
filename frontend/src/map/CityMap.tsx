@@ -12,6 +12,8 @@ interface Props {
   cameras: CameraDirectoryResponse['cameras']
   selectedId: string | null
   onSelect: (id: string | null) => void
+  selectedCameraId?: string | null
+  onSelectCamera?: (camera: CameraDirectoryResponse['cameras'][number]) => void
   /** Bumping this flies the camera back to the opening shot. */
   resetToken: number
   onReady: (tier: BasemapTier) => void
@@ -23,6 +25,8 @@ export default function CityMap({
   cameras,
   selectedId,
   onSelect,
+  selectedCameraId,
+  onSelectCamera,
   resetToken,
   onReady,
   cameraMode = 'isometric',
@@ -33,13 +37,17 @@ export default function CityMap({
   const cameraLayerRef = useRef<CameraLayer | null>(null)
   const selectRef = useRef(onSelect)
   const readyRef = useRef(onReady)
+  const camerasRef = useRef(cameras)
+  const onSelectCameraRef = useRef(onSelectCamera)
   const [ready, setReady] = useState(false)
 
   // keep the latest callbacks reachable from the long-lived Cesium handlers
   useEffect(() => {
     selectRef.current = onSelect
     readyRef.current = onReady
-  }, [onSelect, onReady])
+    camerasRef.current = cameras
+    onSelectCameraRef.current = onSelectCamera
+  }, [onSelect, onReady, cameras, onSelectCamera])
 
   // --- viewer lifecycle (once)
   useEffect(() => {
@@ -85,16 +93,26 @@ export default function CityMap({
     layerRef.current = new FireLayer(viewer)
     cameraLayerRef.current = new CameraLayer(viewer)
 
-    // Click handler for hotspot columns and badges
+    // Click handler for hotspot columns, badges, and camera stations
     const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas)
     handler.setInputAction((click: { position: Cesium.Cartesian2 }) => {
       const picked = viewer.scene.pick(click.position)
       const id = picked?.id?.id
-      if (typeof id === 'string' && (id.startsWith('fire:') || id.startsWith('label:'))) {
-        selectRef.current(id.slice(id.indexOf(':') + 1))
-      } else {
-        selectRef.current(null)
+      if (typeof id === 'string') {
+        if (id.startsWith('fire:') || id.startsWith('label:')) {
+          selectRef.current(id.slice(id.indexOf(':') + 1))
+          return
+        }
+        if (id.startsWith('camera:')) {
+          const camId = id.slice(id.indexOf(':') + 1)
+          const cam = camerasRef.current.find(c => c.id === camId)
+          if (cam && onSelectCameraRef.current) {
+            onSelectCameraRef.current(cam)
+          }
+          return
+        }
       }
+      selectRef.current(null)
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK)
 
     // Build the 3D city immediately upon opening
@@ -150,6 +168,23 @@ export default function CityMap({
       duration: 1.4,
     })
   }, [selectedId, incidents, ready])
+
+  // --- live camera focus: fly in to optical station
+  useEffect(() => {
+    const viewer = viewerRef.current
+    if (!viewer || !ready || !selectedCameraId) return
+    const cam = cameras.find(c => c.id === selectedCameraId)
+    if (!cam) return
+    viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(cam.lon, cam.lat - 0.005, 500),
+      orientation: {
+        heading: Cesium.Math.toRadians(0),
+        pitch: Cesium.Math.toRadians(-22),
+        roll: 0,
+      },
+      duration: 1.4,
+    })
+  }, [selectedCameraId, cameras, ready])
 
   // --- reset view
   useEffect(() => {
