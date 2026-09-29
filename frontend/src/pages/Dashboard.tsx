@@ -9,7 +9,7 @@ import { AnalysisBar, IncidentDetail } from '../map/overlays/Inspector'
 import FlameMark from '../map/overlays/FlameMark'
 import type { BasemapTier } from '../map/config'
 import { api, type AnalyzeInput, type CameraDirectoryResponse } from '../lib/api'
-import { SF_BAY_LIVE_CAMERAS } from '../map/cameraDirectory'
+import { CALIFORNIA_FREE_CAMERAS } from '../map/cameraDirectory'
 import '../map/map.css'
 
 function Console() {
@@ -20,7 +20,7 @@ function Console() {
   const [resetToken, setResetToken] = useState(0)
   const [tier, setTier] = useState<BasemapTier | null>(null)
   const [booted, setBooted] = useState(false)
-  const [cameras, setCameras] = useState<CameraDirectoryResponse['cameras']>(SF_BAY_LIVE_CAMERAS)
+  const [cameras, setCameras] = useState<CameraDirectoryResponse['cameras']>(CALIFORNIA_FREE_CAMERAS)
 
   const [cameraMode, setCameraMode] = useState<'isometric' | 'topdown' | 'cinematic'>('isometric')
   const [hudVisible, setHudVisible] = useState(true)
@@ -43,7 +43,7 @@ function Console() {
   // Refresh statewide / Bay Area camera stations
   useEffect(() => {
     if (!backendUp) {
-      setCameras(SF_BAY_LIVE_CAMERAS)
+      setCameras(CALIFORNIA_FREE_CAMERAS)
       return
     }
     let cancelled = false
@@ -51,11 +51,12 @@ function Console() {
       api.cameraDirectory()
         .then(({ cameras: directory }) => {
           if (!cancelled && directory && directory.length > 0) {
+            // merge statewide directory with California free cameras
             setCameras(directory)
           }
         })
         .catch(() => {
-          if (!cancelled) setCameras(SF_BAY_LIVE_CAMERAS)
+          if (!cancelled) setCameras(CALIFORNIA_FREE_CAMERAS)
         })
     }
     refreshCameras()

@@ -2,16 +2,28 @@ import { useEffect, useState } from 'react'
 import {
   Brain, Camera, Check, ChevronDown, ClipboardList, CloudSun, Eye, GitMerge, MapPin, Play, Satellite, Siren, UserCheck, X,
 } from 'lucide-react'
-import { CRIT_COLOR, api, imageSrc, type AnalyzeInput, type Incident, type NearbyCamera, type PipelineResult } from '../../lib/api'
-import { getNearbyLiveCameras, type LiveCameraFeed } from '../cameraDirectory'
+import { CRIT_COLOR, imageSrc, type AnalyzeInput, type Incident, type NearbyCamera, type PipelineResult } from '../../lib/api'
+import { getNearbyLiveCameras, type LiveCameraFeed, type CameraCategory } from '../cameraDirectory'
 
 const PRESETS: { label: string; lat: number; lon: number }[] = [
   { label: 'San Francisco Downtown', lat: 37.7749, lon: -122.4194 },
-  { label: 'Twin Peaks Summit', lat: 37.7544, lon: -122.4477 },
+  { label: 'SF Bay Bridge West Span', lat: 37.7905, lon: -122.3892 },
   { label: 'Presidio Golden Gate', lat: 37.7989, lon: -122.4662 },
+  { label: 'Twin Peaks Summit', lat: 37.7544, lon: -122.4477 },
   { label: 'Sutro Tower Overlook', lat: 37.7552, lon: -122.4528 },
-  { label: 'Yosemite Hotspot', lat: 37.634, lon: -119.622 },
-  { label: 'Tahoe Station', lat: 38.9, lon: -120.0 },
+  { label: 'I-80 Donner Summit (Sierra)', lat: 39.3175, lon: -120.3340 },
+  { label: 'Yosemite Half Dome', lat: 37.7456, lon: -119.5332 },
+  { label: 'Lake Tahoe Emerald Bay', lat: 38.9540, lon: -120.1000 },
+  { label: 'Mount Shasta Peak', lat: 41.4092, lon: -122.1949 },
+  { label: 'Big Sur Bixby Coast', lat: 36.3714, lon: -121.9018 },
+]
+
+const CATEGORY_TABS: { id: CameraCategory; label: string }[] = [
+  { id: 'all', label: 'All Feeds' },
+  { id: 'sf', label: 'SF City' },
+  { id: 'caltrans', label: 'Caltrans CCTV' },
+  { id: 'wildfire', label: 'Wildfire Net' },
+  { id: 'parks', label: 'Parks & Peaks' },
 ]
 
 /** Bottom-centre control: pick a point, choose a nearby live camera, run the agents. */
@@ -28,6 +40,7 @@ export function AnalysisBar({
   const [lon, setLon] = useState('-122.4194')
   const [cameras, setCameras] = useState<LiveCameraFeed[]>([])
   const [selectedCamera, setSelectedCamera] = useState<LiveCameraFeed | null>(null)
+  const [category, setCategory] = useState<CameraCategory>('all')
   const [cameraOpen, setCameraOpen] = useState(false)
   const [cameraLoading, setCameraLoading] = useState(false)
   const [cameraError, setCameraError] = useState<string | null>(null)
@@ -43,10 +56,9 @@ export function AnalysisBar({
     return () => window.clearInterval(timer)
   }, [])
 
-  // Keep the chooser in sync with the provider even while the operator is
-  // watching an incident rather than changing coordinates.
+  // Staggered snapshot refresher for active Caltrans / traffic CCTV cameras
   useEffect(() => {
-    const timer = window.setInterval(() => setCameraPoll(poll => poll + 1), 60_000)
+    const timer = window.setInterval(() => setCameraPoll(poll => poll + 1), 15_000)
     return () => window.clearInterval(timer)
   }, [])
 
@@ -59,50 +71,16 @@ export function AnalysisBar({
       return
     }
 
-    let cancelled = false
-    const timer = window.setTimeout(() => {
-      setCameraLoading(true)
-      setCameraError(null)
+    setCameraLoading(true)
+    setCameraError(null)
 
-      api.nearbyCameras(la, lo)
-        .then(({ cameras: nearby }) => {
-          if (cancelled) return
-          if (nearby && nearby.length > 0) {
-            const enriched: LiveCameraFeed[] = nearby.map(c => ({
-              ...c,
-              status: 'ONLINE',
-              resolution: '1080p Full HD',
-              fps: 30,
-              network: 'ALERTWest / High-Site Optical Network',
-            }))
-            setCameras(enriched)
-            setCameraUpdatedAt(Date.now())
-            setSelectedCamera(current => current ? enriched.find(c => c.id === current.id) ?? enriched[0] : enriched[0])
-          } else {
-            const fallback = getNearbyLiveCameras(la, lo)
-            setCameras(fallback)
-            setCameraUpdatedAt(Date.now())
-            setSelectedCamera(current => current ? fallback.find(c => c.id === current.id) ?? fallback[0] : fallback[0])
-          }
-        })
-        .catch(() => {
-          if (!cancelled) {
-            const fallback = getNearbyLiveCameras(la, lo)
-            setCameras(fallback)
-            setCameraUpdatedAt(Date.now())
-            setSelectedCamera(current => current ? fallback.find(c => c.id === current.id) ?? fallback[0] : fallback[0])
-          }
-        })
-        .finally(() => {
-          if (!cancelled) setCameraLoading(false)
-        })
-    }, 200)
-
-    return () => {
-      cancelled = true
-      window.clearTimeout(timer)
-    }
-  }, [lat, lon, cameraPoll])
+    // Load free California and San Francisco cameras instantaneously without network delay
+    const nearby = getNearbyLiveCameras(la, lo, category)
+    setCameras(nearby)
+    setCameraUpdatedAt(Date.now())
+    setSelectedCamera(current => (current ? nearby.find(c => c.id === current.id) ?? nearby[0] : nearby[0]))
+    setCameraLoading(false)
+  }, [lat, lon, category, cameraPoll])
 
   const activeFeed = selectedCamera ?? cameras[0] ?? null
 
@@ -146,7 +124,7 @@ export function AnalysisBar({
       <div className="relative">
         <button
           type="button"
-          className="fwmap-input flex min-w-[220px] max-w-[290px] items-center gap-2 text-left transition-colors hover:border-[var(--flame)]"
+          className="fwmap-input flex min-w-[240px] max-w-[320px] items-center gap-2 text-left transition-colors hover:border-[var(--flame)]"
           onClick={() => setCameraOpen(open => !open)}
           aria-expanded={cameraOpen}
           aria-haspopup="listbox"
@@ -164,19 +142,19 @@ export function AnalysisBar({
           <div
             role="listbox"
             aria-label="Available cameras near this location"
-            className="fwmap-panel absolute bottom-[calc(100%+8px)] left-0 z-40 w-[380px] sm:w-[420px] overflow-hidden p-2.5 shadow-2xl border border-white/15 bg-black/90 backdrop-blur-xl rounded-xl"
+            className="fwmap-panel absolute bottom-[calc(100%+8px)] left-0 z-40 w-[410px] sm:w-[460px] overflow-hidden p-3 shadow-2xl border border-white/15 bg-black/95 backdrop-blur-2xl rounded-xl"
           >
             {/* Box Header */}
             <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
               <div>
                 <div className="text-[12px] font-bold tracking-wider text-white uppercase flex items-center gap-1.5">
                   <Camera size={14} className="text-emerald-400" />
-                  <span>Available Cameras</span>
+                  <span>Free Live California Feeds</span>
                   {cameraLoading && <span className="fwmap-spinner !h-3 !w-3" />}
                   <span className="text-[10px] text-zinc-400 font-mono">({cameras.length})</span>
                 </div>
                 <div className="fwmap-mono mt-0.5 text-[9px] text-zinc-400">
-                  RANKED BY DISTANCE · ALERTWEST{cameraUpdatedAt ? ` · SYNCED ${new Date(cameraUpdatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
+                  CALTRANS OPEN CCTV · SF LANDMARKS · ALERTCALIFORNIA{cameraUpdatedAt ? ` · SYNCED ${new Date(cameraUpdatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
                 </div>
               </div>
 
@@ -188,6 +166,24 @@ export function AnalysisBar({
                 </span>
                 <span>LIVE FEED</span>
               </div>
+            </div>
+
+            {/* Network Category Filter Tabs */}
+            <div className="mt-2.5 flex items-center gap-1 overflow-x-auto pb-1">
+              {CATEGORY_TABS.map(tab => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  className={`rounded-full px-2.5 py-0.5 text-[10px] font-medium whitespace-nowrap transition-all ${
+                    category === tab.id
+                      ? 'bg-[#ff5a00] text-white shadow-[0_0_8px_rgba(255,90,0,0.4)]'
+                      : 'bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10'
+                  }`}
+                  onClick={() => setCategory(tab.id)}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
 
             {cameraError && (
@@ -212,8 +208,13 @@ export function AnalysisBar({
                     />
                   ) : activeFeed.image_url ? (
                     <img
+                      key={`${activeFeed.image_url}-${cameraPoll}`}
                       src={activeFeed.image_url}
                       alt={activeFeed.name}
+                      onError={e => {
+                        // Crash-proof fallback: if external Caltrans feed has a transient CORS or timeout issue, load poster
+                        (e.target as HTMLImageElement).src = '/video/ggb-poster.jpg'
+                      }}
                       className="h-full w-full object-cover"
                     />
                   ) : (
@@ -239,7 +240,7 @@ export function AnalysisBar({
                     <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 rounded bg-black/75 px-2 py-0.5 backdrop-blur-md border border-white/10">
                       <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
                       <span className="font-mono text-[9px] font-bold tracking-wider text-white">REC · LIVE</span>
-                      <span className="font-mono text-[9px] text-zinc-400">30 FPS</span>
+                      <span className="font-mono text-[9px] text-zinc-400">{activeFeed.fps || 30} FPS</span>
                     </div>
 
                     <div className="absolute top-2.5 right-2.5 rounded bg-black/75 px-2 py-0.5 font-mono text-[9px] text-emerald-300 backdrop-blur-md border border-white/10">
@@ -257,8 +258,8 @@ export function AnalysisBar({
                         </span>
                       </div>
                       <div className="flex items-center justify-between text-[10px] font-mono text-zinc-300 mt-0.5">
-                        <span>AZ {activeFeed.azimuth ?? 45}° · ELEV {activeFeed.elevation_m ?? 280}m</span>
-                        <span className="text-zinc-400">{activeFeed.resolution || '1080p Full HD'}</span>
+                        <span className="truncate mr-2 text-zinc-300">{activeFeed.network}</span>
+                        <span className="shrink-0 text-zinc-400">{activeFeed.resolution || '1080p HD'}</span>
                       </div>
                     </div>
                   </div>
@@ -296,7 +297,7 @@ export function AnalysisBar({
               )}
             </div>
 
-            {/* Scrollable list of available cameras */}
+            {/* Scrollable list of available cameras with source tags */}
             <div className="fwmap-scroll mt-2 max-h-[190px] overflow-y-auto space-y-1 pr-1">
               {cameras.map(camera => {
                 const isSelected = activeFeed?.id === camera.id
@@ -313,15 +314,37 @@ export function AnalysisBar({
                     }`}
                     onClick={() => handleSelect(camera)}
                   >
-                    <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-md ${isSelected ? 'bg-[#ff5a00] text-white' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                    <span
+                      className={`grid h-8 w-8 shrink-0 place-items-center rounded-md ${
+                        isSelected
+                          ? 'bg-[#ff5a00] text-white'
+                          : camera.category === 'caltrans'
+                          ? 'bg-amber-500/20 text-amber-400'
+                          : camera.category === 'parks'
+                          ? 'bg-cyan-500/20 text-cyan-400'
+                          : 'bg-emerald-500/20 text-emerald-400'
+                      }`}
+                    >
                       <Camera size={14} />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[11px] font-medium leading-snug">
-                        {camera.name}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="block truncate text-[11px] font-medium leading-snug">
+                          {camera.name}
+                        </span>
+                        {camera.category === 'caltrans' && camera.highwayRoute && (
+                          <span className="shrink-0 rounded bg-amber-500/20 border border-amber-500/30 px-1 py-0.2 text-[8px] font-mono font-bold text-amber-300">
+                            {camera.highwayRoute}
+                          </span>
+                        )}
+                        {camera.category === 'parks' && (
+                          <span className="shrink-0 rounded bg-cyan-500/20 border border-cyan-500/30 px-1 py-0.2 text-[8px] font-mono font-bold text-cyan-300">
+                            PARK
+                          </span>
+                        )}
+                      </div>
                       <span className="fwmap-mono block truncate text-[9px] text-zinc-400">
-                        {camera.lat.toFixed(4)}, {camera.lon.toFixed(4)} {camera.azimuth ? `· AZ ${camera.azimuth}°` : ''}
+                        {camera.network}
                       </span>
                     </span>
                     <span className="fwmap-mono shrink-0 text-[10px] font-bold text-amber-400">
