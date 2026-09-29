@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import pathlib
+import subprocess
 import sys
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -43,20 +44,19 @@ async def export_dispatcher_labels(db: AsyncSession) -> dict[str, int]:
 
 
 async def run_flower(rounds: int) -> str:
+    # subprocess.run in a worker thread instead of asyncio.create_subprocess_exec:
+    # on Windows, uvicorn --reload runs a SelectorEventLoop, which cannot spawn
+    # subprocesses (NotImplementedError with an empty message).
     env = {**os.environ, "PYTHONPATH": os.pathsep.join([str(BACKEND), os.environ.get("PYTHONPATH", "")])}
-    proc = await asyncio.create_subprocess_exec(
-        sys.executable,
-        "-m",
-        "app.federation.run",
-        "--rounds",
-        str(rounds),
+    proc = await asyncio.to_thread(
+        subprocess.run,
+        [sys.executable, "-m", "app.federation.run", "--rounds", str(rounds)],
         cwd=str(BACKEND.parent),
         env=env,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.STDOUT,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
     )
-    out, _ = await proc.communicate()
-    text = out.decode(errors="replace")
+    text = proc.stdout.decode(errors="replace")
     if proc.returncode != 0:
         raise RuntimeError(text[-2000:])
     return text
