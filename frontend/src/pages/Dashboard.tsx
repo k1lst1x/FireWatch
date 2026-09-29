@@ -38,19 +38,27 @@ function Console() {
     [analyze],
   )
 
-  // The map loads the statewide directory once after the authenticated API is online.
-  // Cesium clusters the markers, so this does not turn a statewide view into 13k labels.
+  // Refresh the statewide directory every minute after the authenticated API is
+  // online. Cesium clusters the markers, so this does not turn a statewide view
+  // into 13k labels.
   useEffect(() => {
     if (!backendUp) return
     let cancelled = false
-    api.cameraDirectory()
-      .then(({ cameras: directory }) => {
-        if (!cancelled) setCameras(directory)
-      })
-      .catch(() => {
-        if (!cancelled) setCameras([])
-      })
-    return () => { cancelled = true }
+    const refreshCameras = () => {
+      api.cameraDirectory()
+        .then(({ cameras: directory }) => {
+          if (!cancelled) setCameras(directory)
+        })
+        // Retain the last known directory during a short provider outage so
+        // operators do not lose their map context while the next poll retries.
+        .catch(() => {})
+    }
+    refreshCameras()
+    const timer = window.setInterval(refreshCameras, 60_000)
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+    }
   }, [backendUp])
 
   return (

@@ -25,6 +25,15 @@ export function AnalysisBar({
   const [cameraOpen, setCameraOpen] = useState(false)
   const [cameraLoading, setCameraLoading] = useState(false)
   const [cameraError, setCameraError] = useState<string | null>(null)
+  const [cameraUpdatedAt, setCameraUpdatedAt] = useState<number | null>(null)
+  const [cameraPoll, setCameraPoll] = useState(0)
+
+  // Keep the chooser in sync with the provider even while the operator is
+  // watching an incident rather than changing coordinates.
+  useEffect(() => {
+    const timer = window.setInterval(() => setCameraPoll(poll => poll + 1), 60_000)
+    return () => window.clearInterval(timer)
+  }, [])
 
   useEffect(() => {
     const la = Number(lat)
@@ -43,6 +52,8 @@ export function AnalysisBar({
         .then(({ cameras: nearby }) => {
           if (cancelled) return
           setCameras(nearby)
+          setCameraUpdatedAt(Date.now())
+          setSelectedCamera(current => current ? nearby.find(camera => camera.id === current.id) ?? null : null)
           if (nearby.length === 0) setCameraError('No live cameras found within range')
         })
         .catch(() => {
@@ -60,7 +71,7 @@ export function AnalysisBar({
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [lat, lon])
+  }, [lat, lon, cameraPoll])
 
   useEffect(() => {
     setSelectedCamera(null)
@@ -121,9 +132,13 @@ export function AnalysisBar({
             <div className="flex items-center justify-between border-b border-[var(--line)] px-2.5 pb-2 pt-1.5">
               <div>
                 <div className="fwmap-title">Available cameras</div>
-                <div className="fwmap-mono mt-0.5 text-[9px] text-[var(--ash-3)]">RANKED BY DISTANCE · ALERTWEST</div>
+                <div className="fwmap-mono mt-0.5 text-[9px] text-[var(--ash-3)]">
+                  RANKED BY DISTANCE · ALERTWEST{cameraUpdatedAt ? ` · UPDATED ${new Date(cameraUpdatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
+                </div>
               </div>
-              <span className="flex items-center gap-1 text-[10px] text-emerald-300"><Radio size={11} /> LIVE</span>
+              <span className={`flex items-center gap-1 text-[10px] ${cameraError ? 'text-amber-300' : 'text-emerald-300'}`}>
+                <Radio size={11} /> {cameraError ? 'RECONNECTING' : 'LIVE'}
+              </span>
             </div>
 
             <button
