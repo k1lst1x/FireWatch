@@ -109,9 +109,9 @@ async def test_satellite_agent_hotspots_dict_payload():
 
     with (
         patch(
-            "app.services.ai.agents.satellite.fetch_firms_rows",
+            "app.services.ai.agents.satellite.httpx_get_bytes",
             new_callable=AsyncMock,
-            return_value=firms_payload,
+            return_value=b"latitude,longitude,frp\n37,-122,80\n",
         ),
         patch("app.services.ai.agents.satellite.settings.nasa_firms_map_key", "map-key"),
     ):
@@ -120,15 +120,15 @@ async def test_satellite_agent_hotspots_dict_payload():
 
     assert result.hotspot_detected is True
     assert result.thermal_confidence == pytest.approx(min(frp / 100.0, 1.0))
-    assert result.raw["hotspots"] == firms_payload["data"]
+    assert result.raw["hotspots"] == [{"latitude": "37", "longitude": "-122", "frp": "80"}]
 
 
 @pytest.mark.asyncio
 async def test_satellite_agent_missing_map_key():
-    with patch("app.services.ai.agents.satellite.fetch_firms_rows", new_callable=AsyncMock) as get_json:
+    with patch("app.services.ai.agents.satellite.httpx_get_bytes", new_callable=AsyncMock) as get_bytes:
         result = await SatelliteAgent().run(lat=1.0, lon=1.0)
 
-    get_json.assert_not_called()
+    get_bytes.assert_not_called()
     assert result.hotspot_detected is False
     assert "NASA_FIRMS_MAP_KEY" in (result.raw or {}).get("error", "")
 
@@ -139,9 +139,9 @@ async def test_satellite_agent_hotspots_list_payload_capped():
 
     with (
         patch(
-            "app.services.ai.agents.satellite.fetch_firms_rows",
+            "app.services.ai.agents.satellite.httpx_get_bytes",
             new_callable=AsyncMock,
-            return_value=firms_payload,
+            return_value=b"frp\n250\n",
         ),
         patch("app.services.ai.agents.satellite.settings.nasa_firms_map_key", "k"),
     ):
@@ -155,9 +155,9 @@ async def test_satellite_agent_hotspots_list_payload_capped():
 async def test_satellite_agent_no_hotspots():
     with (
         patch(
-            "app.services.ai.agents.satellite.fetch_firms_rows",
+            "app.services.ai.agents.satellite.httpx_get_bytes",
             new_callable=AsyncMock,
-            return_value={"data": []},
+            return_value=b"latitude,longitude,frp\n",
         ),
         patch("app.services.ai.agents.satellite.settings.nasa_firms_map_key", "k"),
     ):
@@ -211,12 +211,21 @@ def test_spread_risk_extremes():
 
 @pytest.mark.asyncio
 async def test_firms_nominal_confidence_beats_low_frp():
-    from app.services.ai.agents.satellite import SatelliteAgent
-
-    rows = {"data": [{"frp": "11.2", "confidence": "n", "latitude": "37.63", "longitude": "-119.62"}]}
+    csv_body = b"latitude,longitude,frp,confidence\n37.63,-119.62,11.2,n\n"
     with (
-        patch("app.services.ai.agents.satellite.fetch_firms_rows", new_callable=AsyncMock, return_value=rows),
+        patch("app.services.ai.agents.satellite.httpx_get_bytes", new_callable=AsyncMock, return_value=csv_body),
         patch("app.services.ai.agents.satellite.settings.nasa_firms_map_key", "k"),
     ):
         r = await SatelliteAgent().run(lat=37.63, lon=-119.62)
     assert r.hotspot_detected and r.thermal_confidence == 0.65
+
+
+@pytest.mark.asyncio
+async def test_firms_error_text_is_not_treated_as_empty_csv():
+    with (
+        patch("app.services.ai.agents.satellite.httpx_get_bytes", new_callable=AsyncMock, return_value=b"Invalid MAP_KEY."),
+        patch("app.services.ai.agents.satellite.settings.nasa_firms_map_key", "bad"),
+    ):
+        r = await SatelliteAgent().run(lat=37.63, lon=-119.62)
+    assert r.hotspot_detected is False
+    assert "Invalid MAP_KEY" in (r.raw or {}).get("error", "")

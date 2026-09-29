@@ -61,11 +61,11 @@ class FirmsApiError(Exception):
 
 async def fetch_firms_rows(url: str, *, timeout: float, max_attempts: int) -> dict[str, Any]:
     body = await httpx_get_bytes(url, timeout=timeout, max_attempts=max_attempts, label="nasa_firms")
-    text = body.decode("utf-8", errors="replace").strip()
+    text = body.decode("utf-8-sig", errors="replace").strip()
     if not text:
         return {"data": []}
-    first = text.splitlines()[0]
-    if "latitude" not in first.lower():
+    header = {c.strip().lower() for c in text.splitlines()[0].split(",")}
+    if not header & {"latitude", "longitude", "frp", "confidence", "bright_ti4", "acq_date"}:
         raise FirmsApiError(text[:200])
     rows = list(csv.DictReader(io.StringIO(text)))
     return {"data": rows}
