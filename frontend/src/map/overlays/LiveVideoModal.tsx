@@ -9,7 +9,6 @@ import {
   Maximize,
   Minimize,
   Sliders,
-  Tv,
   Wind,
   X,
   Zap,
@@ -36,7 +35,6 @@ export default function LiveVideoModal({
 }: Props) {
   const [fullscreen, setFullscreen] = useState(false)
   const [timecode, setTimecode] = useState(() => new Date().toLocaleTimeString('en-US', { hour12: false }))
-  const [mode, setMode] = useState<'stream' | 'cctv'>('stream')
   const [filter, setFilter] = useState<VisionFilter>('normal')
   const [zoom, setZoom] = useState<number>(1)
 
@@ -50,10 +48,11 @@ export default function LiveVideoModal({
   // Real-time camera local weather
   const [weather, setWeather] = useState<RealtimeWeather | null>(null)
 
-  // Initialize display mode based on camera type
+  const baseCctvUrl = camera?.live_cctv_url || camera?.image_url || ''
+
+  // Initialize camera and local weather
   useEffect(() => {
     if (camera) {
-      setMode(camera.stream_type === 'live_stream' ? 'stream' : 'cctv')
       setFrameCount(1)
       setCctvError(false)
       // Fetch live weather at this camera location
@@ -71,16 +70,17 @@ export default function LiveVideoModal({
     return () => window.clearInterval(timer)
   }, [])
 
-  // Continuous Real-Time CCTV Poller: Pulls fresh live frame every 2.0s
+  // Continuous Real-Time CCTV Poller: Pulls fresh live frame every 2.0s directly from DOT
   useEffect(() => {
-    if (!camera || mode !== 'cctv' || !camera.live_cctv_url) return
+    if (!baseCctvUrl) return
 
     const pollInterval = window.setInterval(() => {
       const t0 = performance.now()
       setIsPulling(true)
 
+      const base = baseCctvUrl.split('?')[0]
       const img = new Image()
-      img.src = `${camera.live_cctv_url}?_t=${Date.now()}`
+      img.src = `${base}?_t=${Date.now()}`
       img.onload = () => {
         setLatencyMs(Math.round(performance.now() - t0))
         setFrameTimestamp(Date.now())
@@ -95,7 +95,7 @@ export default function LiveVideoModal({
     }, 2000)
 
     return () => window.clearInterval(pollInterval)
-  }, [camera, mode])
+  }, [baseCctvUrl])
 
   // Keyboard escape
   useEffect(() => {
@@ -195,34 +195,12 @@ export default function LiveVideoModal({
           </div>
         </div>
 
-        {/* Tactical Feed Selector Toolbar */}
+        {/* Tactical Feed Toolbar */}
         <div className="flex items-center justify-between border-b border-white/10 bg-black/60 px-4 py-2 text-xs">
-          {/* Mode Switcher */}
-          <div className="flex items-center gap-1 bg-white/5 rounded-lg p-1 border border-white/10">
-            {camera.live_stream_url && (
-              <button
-                className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-[11px] font-medium transition-all ${
-                  mode === 'stream'
-                    ? 'bg-[#ff5a00] text-white shadow-[0_0_10px_rgba(255,90,0,0.4)]'
-                    : 'text-zinc-400 hover:text-white'
-                }`}
-                onClick={() => setMode('stream')}
-              >
-                <Tv size={12} />
-                <span>24/7 Live Stream</span>
-              </button>
-            )}
-            <button
-              className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-[11px] font-medium transition-all ${
-                mode === 'cctv'
-                  ? 'bg-[#ff5a00] text-white shadow-[0_0_10px_rgba(255,90,0,0.4)]'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-              onClick={() => setMode('cctv')}
-            >
-              <Zap size={12} />
-              <span>Real-Time DOT CCTV (2s Poll)</span>
-            </button>
+          {/* Active DOT CCTV Badge */}
+          <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-2.5 py-1 text-emerald-300 font-mono text-[11px] font-bold shadow-[0_0_12px_rgba(16,185,129,0.2)]">
+            <Zap size={13} className="text-emerald-400" />
+            <span>REAL-TIME DOT CCTV (2s POLL)</span>
           </div>
 
           {/* Optical Filters & Zoom */}
@@ -266,51 +244,31 @@ export default function LiveVideoModal({
           </div>
         </div>
 
-        {/* Real Live Camera Display Container */}
+        {/* Real Live DOT CCTV Camera Display Container */}
         <div className="relative flex-1 bg-black overflow-hidden flex items-center justify-center min-h-[380px] max-h-[520px]">
-          {mode === 'stream' && camera.live_stream_url ? (
-            /* Mode 1: Genuine 24/7 Live Video Stream Embed */
-            <div className="relative w-full h-full min-h-[400px]">
-              <iframe
-                key={camera.live_stream_url}
-                src={camera.live_stream_url}
-                title={camera.name}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-                className="w-full h-full border-0"
-                style={{
-                  filter: filterStyles[filter],
-                  transform: `scale(${zoom})`,
-                  transformOrigin: 'center center',
-                }}
-              />
-            </div>
-          ) : (
-            /* Mode 2: Continuous Real-Time Caltrans CCTV Frame Poller */
-            <div className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden">
-              <img
-                key={`${cctvUrl}-${frameTimestamp}`}
-                src={cctvUrl}
-                alt={camera.name}
-                className="max-h-full max-w-full object-contain transition-all duration-300"
-                style={{
-                  filter: filterStyles[filter],
-                  transform: `scale(${zoom})`,
-                  transformOrigin: 'center center',
-                }}
-              />
+          <div className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden">
+            <img
+              key={`${cctvUrl}-${frameTimestamp}`}
+              src={cctvUrl.includes('?') ? cctvUrl : `${cctvUrl}?_t=${frameTimestamp}`}
+              alt={camera.name}
+              className="max-h-full max-w-full object-contain transition-all duration-300"
+              style={{
+                filter: filterStyles[filter],
+                transform: `scale(${zoom})`,
+                transformOrigin: 'center center',
+              }}
+            />
 
-              {cctvError && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-amber-300 gap-2 p-4 text-center">
-                  <AlertTriangle size={28} />
-                  <div className="font-bold text-sm">Station Feed Buffering</div>
-                  <div className="text-xs text-zinc-400 max-w-xs">
-                    Re-establishing direct telemetry link with California DOT optical sensor…
-                  </div>
+            {cctvError && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-amber-300 gap-2 p-4 text-center">
+                <AlertTriangle size={28} />
+                <div className="font-bold text-sm">Station Feed Buffering</div>
+                <div className="text-xs text-zinc-400 max-w-xs">
+                  Re-establishing direct telemetry link with California DOT optical sensor…
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
 
           {/* Tactical Optical HUD Overlay */}
           <div className="pointer-events-none absolute inset-0">
@@ -332,11 +290,11 @@ export default function LiveVideoModal({
               <span className={`h-2.5 w-2.5 rounded-full ${isPulling ? 'bg-amber-400 animate-ping' : 'bg-emerald-400 animate-pulse'}`} />
               <div>
                 <div className="font-mono text-[10px] font-bold tracking-wider text-white flex items-center gap-1.5">
-                  <span>{mode === 'stream' ? 'LIVE 24/7 STREAM' : 'LIVE CCTV REFRESH'}</span>
-                  <span className="text-emerald-400">● {mode === 'stream' ? '30 FPS' : `POLL 2.0s`}</span>
+                  <span>REAL-TIME DOT CCTV</span>
+                  <span className="text-emerald-400">● POLL 2.0s</span>
                 </div>
                 <div className="font-mono text-[9px] text-zinc-400">
-                  {mode === 'cctv' ? `FRAME #${frameCount} · PING ${latencyMs}ms` : 'BROADCAST ACTIVE'}
+                  FRAME #{frameCount} · PING {latencyMs}ms
                 </div>
               </div>
             </div>
