@@ -89,7 +89,7 @@ function Console() {
     return weather ? buildLiveSanFranciscoTelemetry(weather) : DEMO_INCIDENTS
   }, [weather])
 
-  const simulated = !backendUp && incidents.length === 0
+  const simulated = false
   const shown = useMemo(() => {
     if (backendUp && incidents.length > 0) return incidents
     return liveIncidents

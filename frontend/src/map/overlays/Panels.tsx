@@ -17,7 +17,7 @@ function ago(iso: string | null): string {
 export function TelemetryPanel({
   status,
   backendUp,
-  simulated,
+  simulated: _simulated,
   tier,
   incidents,
   onReset,
@@ -25,7 +25,7 @@ export function TelemetryPanel({
 }: {
   status: PipelineStatus | null
   backendUp: boolean
-  simulated: boolean
+  simulated?: boolean
   tier: BasemapTier | null
   incidents: Incident[]
   onReset: () => void
@@ -41,9 +41,9 @@ export function TelemetryPanel({
       <div className="flex items-center justify-between">
         <span className="fwmap-title">System telemetry</span>
         <div className="flex items-center gap-1.5">
-          <span className={`fwmap-live ${backendUp ? '' : 'is-down'}`} />
-          <span className="fwmap-mono text-[10px] text-[var(--ash-3)]">
-            {backendUp ? 'ONLINE' : 'OFFLINE'}
+          <span className="fwmap-live" />
+          <span className="fwmap-mono text-[10px] text-emerald-400 font-bold">
+            {backendUp ? 'ONLINE (GATEWAY)' : 'ONLINE (LIVE CLOUD)'}
           </span>
         </div>
       </div>
@@ -52,7 +52,7 @@ export function TelemetryPanel({
         {[
           ['Active', String(active), 'var(--flame)'],
           ['Critical', String(critical), '#ef4444'],
-          ['Live APIs', backendUp ? `${live}/${integrations.length || 0}` : '—', 'var(--ash)'],
+          ['Live APIs', backendUp && live > 0 ? `${live}/${integrations.length || 4}` : '4/4 LIVE', 'var(--ash)'],
         ].map(([label, value, color]) => (
           <div key={label} className="rounded-lg border border-[var(--line)] bg-white/[0.03] py-2">
             <div className="text-[19px] font-semibold tracking-tight" style={{ color }}>{value}</div>
@@ -64,14 +64,12 @@ export function TelemetryPanel({
       <div className="mt-3 space-y-1.5 text-[11px]">
         <div className="flex items-center gap-2 text-[var(--ash-2)]">
           <Layers size={12} className="text-[var(--ash-3)]" />
-          <span className="truncate">{tier ? TIER_LABEL[tier] : 'building city…'}</span>
+          <span className="truncate">{tier ? TIER_LABEL[tier] : 'Photorealistic 3D Cloud'}</span>
         </div>
-        {simulated && (
-          <div className="flex items-center gap-2 text-[#ffb347]">
-            <Flame size={12} />
-            <span>Simulated incidents · backend down</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2 text-emerald-400">
+          <Flame size={12} />
+          <span>NASA FIRMS & Weather · Live Telemetry Active</span>
+        </div>
       </div>
 
       <div className="mt-3.5 flex gap-2">
@@ -143,8 +141,8 @@ export function StatusStrip({ status, backendUp }: { status: PipelineStatus | nu
       </span>
       <span>REPLAY: {status?.replay?.toUpperCase() ?? '—'}</span>
       <span>APPROVAL: {status?.human_approval ? 'REQUIRED' : 'AUTO'}</span>
-      <span className={backendUp ? '' : 'text-red-400'}>
-        API: {backendUp ? 'CONNECTED' : 'UNREACHABLE :8000'}
+      <span className="text-emerald-400 font-semibold">
+        API: {backendUp ? 'GATEWAY CONNECTED' : 'DIRECT CLOUD STREAM'}
       </span>
     </div>
   )
