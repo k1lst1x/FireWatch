@@ -17,8 +17,8 @@ type Chip = {
 
 const Row = ({ k, v, accent }: { k: string; v: ReactNode; accent?: boolean }) => (
   <div className="flex items-baseline justify-between gap-2 text-[12px]">
-    <span className="text-[var(--ash-3)]">{k}</span>
-    <span className={`mono truncate ${accent ? 'text-[var(--flame)]' : 'text-[var(--ash)]'}`}>{v}</span>
+    <span className="text-[var(--txt-3)]">{k}</span>
+    <span className={`mono truncate ${accent ? 'text-[var(--amber-hi)]' : 'text-[var(--txt)]'}`}>{v}</span>
   </div>
 )
 
@@ -33,15 +33,15 @@ const SERIAL: Chip[] = [
     n: 4, title: 'Fusion', icon: GitMerge,
     body: d => (
       <>
-        <div className={`text-[15px] font-semibold tracking-tight ${d ? 'text-[var(--ash-2)]' : 'text-[var(--flame)]'}`}>{d ? 'DISMISSED' : 'CONFIRMED'}</div>
+        <div className={`mono text-[13px] tracking-[0.08em] ${d ? 'text-[var(--txt-2)]' : 'text-[var(--amber-hi)]'}`}>{d ? 'DISMISSED' : 'CONFIRMED'}</div>
         <Row k="combined" v={d ? '0.29' : '0.81'} />
       </>
     ),
   },
-  { n: 5, title: 'Reasoning', icon: Brain, badge: 'llm', body: () => <p className="line-clamp-3 text-[12px] leading-snug text-[var(--ash-2)]">Grey-white plume rising from a forested ridge north-east of the camera.</p> },
-  { n: 6, title: 'Severity', icon: Siren, badge: 'llm', body: () => <div className="mt-1 inline-flex rounded-md border border-[#ff7a1a66] bg-[#ff7a1a1f] px-2 py-0.5 text-[13px] font-semibold tracking-wide text-[#ff9a4a]">HIGH</div> },
-  { n: 7, title: 'Plan', icon: ClipboardList, badge: 'rules', body: () => <p className="line-clamp-3 text-[12px] leading-snug text-[var(--ash-2)]">Send the nearest engine for size-up; notify the duty chief.</p> },
-  { n: 8, title: 'Human', icon: UserCheck, body: () => <div className="mt-1 flex items-center gap-2 text-[13px]"><span className="h-2 w-2 animate-pulse rounded-full bg-[var(--flame)]" />Awaiting dispatcher</div> },
+  { n: 5, title: 'Reasoning', icon: Brain, badge: 'llm', body: () => <p className="line-clamp-3 text-[12px] leading-snug text-[var(--txt-2)]">Grey-white plume rising from a forested ridge north-east of the camera.</p> },
+  { n: 6, title: 'Severity', icon: Siren, badge: 'llm', body: () => <div className="mono mt-1 inline-flex rounded-[3px] border border-[rgba(239,68,68,0.4)] bg-[rgba(239,68,68,0.12)] px-2 py-0.5 text-[11px] tracking-[0.1em] text-[#f87171]">HIGH</div> },
+  { n: 7, title: 'Plan', icon: ClipboardList, badge: 'rules', body: () => <p className="line-clamp-3 text-[12px] leading-snug text-[var(--txt-2)]">Send the nearest engine for size-up; notify the duty chief.</p> },
+  { n: 8, title: 'Human', icon: UserCheck, body: () => <div className="mt-1 flex items-center gap-2 text-[12px]"><span className="fw-dot fw-dot--amber" />Awaiting dispatcher</div> },
 ]
 
 function StepChip({ chip, on, current, skipped, dismissed }: { chip: Chip; on: boolean; current: boolean; skipped: boolean; dismissed: boolean }) {
@@ -53,16 +53,16 @@ function StepChip({ chip, on, current, skipped, dismissed }: { chip: Chip; on: b
         {skipped && on ? (
           <span className="fw-badge fw-badge--rules">skipped</span>
         ) : chip.latency ? (
-          <span className="mono text-[10px] text-[var(--ash-3)]">{chip.latency} ms</span>
+          <span className="mono text-[10px] text-[var(--txt-3)]">{chip.latency} ms</span>
         ) : chip.badge ? (
           <span className={`fw-badge fw-badge--${chip.badge}`}>{chip.badge === 'llm' ? 'LLM' : 'rules'}</span>
         ) : null}
       </div>
       <div className="mt-2 flex items-center gap-2">
-        <Icon size={15} className={on && !skipped ? 'text-[var(--flame)]' : 'text-[var(--ash-3)]'} />
+        <Icon size={15} className={on && !skipped ? 'text-[var(--amber-hi)]' : 'text-[var(--txt-3)]'} />
         <span className="text-[15px] font-medium tracking-[-0.01em]">{chip.title}</span>
       </div>
-      <div className="mt-2 space-y-1">{skipped ? <p className="text-[12px] text-[var(--ash-3)]">Fusion dismissed the alert; nothing downstream runs.</p> : chip.body(dismissed)}</div>
+      <div className="mt-2 space-y-1">{skipped ? <p className="text-[12px] text-[var(--txt-3)]">Fusion dismissed the alert; nothing downstream runs.</p> : chip.body(dismissed)}</div>
     </div>
   )
 }
@@ -111,25 +111,25 @@ export default function Pipeline() {
 
   return (
     <section id="pipeline" ref={ref} className="fw-section relative h-[340vh]">
-      <div className="sticky top-0 flex h-screen flex-col justify-center px-5 pt-[76px] md:px-10">
-        <div className="mx-auto w-full max-w-[1320px]">
+      <div className="sticky top-0 flex h-screen flex-col justify-center px-5 pt-[76px] md:px-8">
+        <div className="mx-auto w-full max-w-[1240px]">
           <div className="flex flex-wrap items-end justify-between gap-6">
             <div>
               <Kicker n="02">Agent pipeline</Kicker>
               <h2 className="fw-h2 mt-5 max-w-[760px]">
                 <span className="block"><Split>Eight agents.</Split></span>
                 <span className="block">
-                  <Split className="serif ember-text">Seconds,</Split>{' '}
+                  <Split className="">Seconds,</Split>{' '}
                   <Split>not minutes.</Split>
                 </span>
               </h2>
             </div>
-            <div className="flex items-center gap-1 rounded-full border border-[var(--line)] bg-black/30 p-1 text-[12px] backdrop-blur" data-fade>
+            <div className="fw-seg" data-fade>
               {(['Confirmed run', 'Dismissed run'] as const).map((l, i) => (
                 <button
                   key={l}
                   onClick={() => setDismissed(i === 1)}
-                  className={`rounded-full px-3.5 py-1.5 transition-colors ${dismissed === (i === 1) ? 'bg-[var(--ash)] text-black' : 'text-[var(--ash-2)] hover:text-[var(--ash)]'}`}
+                  className={dismissed === (i === 1) ? 'is-on' : ''}
                 >
                   {l}
                 </button>
@@ -139,9 +139,9 @@ export default function Pipeline() {
 
           <div className="fw-panel mt-10 overflow-x-auto p-5 md:p-6">
             <div className="mb-5 flex flex-wrap items-center gap-3 border-b border-[var(--line)] pb-5 text-[13px]">
-              <span className="mono rounded-lg border border-[var(--line)] px-3 py-1.5 text-[var(--ash-2)]">38.9000, -120.0000</span>
-              <span className="mono rounded-lg border border-[var(--line)] px-3 py-1.5 text-[var(--ash-2)]">nearest live camera</span>
-              <span className={`ml-auto inline-flex items-center gap-2 rounded-full px-4 py-1.5 font-medium transition-colors ${step >= 1 ? 'bg-[var(--ember)] text-black' : 'bg-white/10 text-[var(--ash-2)]'}`}>
+              <span className="mono rounded-md border border-[var(--line-2)] bg-[var(--ink-1)] px-2.5 py-1.5 text-[12px] text-[var(--txt-2)]">38.9000, -120.0000</span>
+              <span className="mono rounded-md border border-[var(--line-2)] bg-[var(--ink-1)] px-2.5 py-1.5 text-[12px] text-[var(--txt-2)]">nearest live camera</span>
+              <span className={`ml-auto inline-flex items-center gap-2 rounded-md px-3.5 py-1.5 text-[12px] font-medium transition-colors ${step >= 1 ? 'bg-[var(--amber)] text-white' : 'bg-[var(--ink-3)] text-[var(--txt-2)]'}`}>
                 {step >= 1 && step < 8 && <span className="fw-spinner" />}
                 {step >= 8 ? 'Analysis complete' : step >= 1 ? 'Running analysis' : 'Run Analysis'}
               </span>
@@ -168,7 +168,7 @@ export default function Pipeline() {
             <p key={step} className="fw-lead max-w-[640px] animate-[fw-caption_0.6s_ease]">
               {dismissed && step >= 5 ? 'Fusion dismissed this one, so reasoning, severity, plan and human review are skipped.' : CAPTIONS[step]}
             </p>
-            <div className="mono hidden text-[11px] text-[var(--ash-3)] md:block">
+            <div className="mono hidden text-[11px] text-[var(--txt-3)] md:block">
               step {Math.max(step, 0)}/8 · illustrative run
             </div>
           </div>

@@ -202,14 +202,14 @@ export default function Federation() {
   ] as const, [])
 
   return (
-    <section id="federation" className="fw-section px-5 py-[14vh] md:px-10">
-      <div className="mx-auto max-w-[1320px]">
+    <section id="federation" className="fw-section px-5 py-[13vh] md:px-8">
+      <div className="mx-auto max-w-[1240px]">
         <div className="grid items-end gap-8 lg:grid-cols-[1.2fr_1fr]">
           <div>
             <Kicker n="03">Federated learning</Kicker>
             <h2 className="fw-h2 mt-6">
               <span className="block"><Split>Stations learn together.</Split></span>
-              <span className="block"><Split className="serif ember-text">Images stay home.</Split></span>
+              <span className="block"><Split className="">Images stay home.</Split></span>
             </h2>
           </div>
           <p className="fw-lead max-w-[520px] lg:justify-self-end" data-fade>
@@ -222,12 +222,12 @@ export default function Federation() {
         <div className="fw-panel mt-14 flex flex-wrap items-center gap-x-8 gap-y-4 px-6 py-5" data-fade>
           <div className="flex items-baseline gap-3 text-[clamp(20px,2.2vw,30px)] font-medium tracking-[-0.02em]">
             <span>Round <span className="mono">{round}</span></span>
-            <span className="text-[var(--ash-3)]">·</span>
+            <span className="text-[var(--txt-3)]">·</span>
             <span>{stations.length} stations</span>
-            <span className="text-[var(--ash-3)]">·</span>
-            <span>false alarms <span className="text-[var(--ash-2)]">{pct(first)}</span> → <span className="ember-text font-semibold">{pct(now)}</span></span>
+            <span className="text-[var(--txt-3)]">·</span>
+            <span>false alarms <span className="text-[var(--txt-2)]">{pct(first)}</span> → <span className="font-medium text-[var(--amber-hi)]">{pct(now)}</span></span>
           </div>
-          <button className="fw-btn fw-btn--ember ml-auto !px-6 !py-3 !text-[15px] disabled:opacity-80" onClick={runRound} disabled={running} data-magnetic>
+          <button className="fw-btn fw-btn--amber ml-auto !px-6 !py-3 !text-[15px] disabled:opacity-80" onClick={runRound} disabled={running}>
             {running ? <span className="fw-spinner" /> : <Play size={16} fill="currentColor" />}
             {running ? 'Running round…' : 'Run federated round'}
           </button>
@@ -236,30 +236,30 @@ export default function Federation() {
         {/* station cards */}
         <div ref={barsRef} className="mt-5 grid gap-5 md:grid-cols-3">
           {stations.map((s, i) => (
-            <article key={s.id} className="fw-panel fw-panel--hover fw-spot p-6" data-fade data-delay={i * 0.1} data-tilt>
+            <article key={s.id} className="fw-panel fw-panel--hover p-6" data-fade data-delay={i * 0.1}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <span className="fw-live" />
+                  <span className="fw-dot fw-dot--ok" />
                   <h3 className="text-[20px] font-medium tracking-[-0.02em]">{s.name}</h3>
                 </div>
-                <span className="mono text-[10px] uppercase tracking-[0.16em] text-[var(--ash-3)]">online</span>
+                <span className="mono text-[10px] uppercase tracking-[0.16em] text-[var(--txt-3)]">online</span>
               </div>
               <div className="mt-6 grid grid-cols-2 gap-4">
                 <div>
-                  <div className="text-[12px] text-[var(--ash-3)]">Labels collected</div>
-                  <div className="mt-1 text-[34px] font-semibold tracking-[-0.03em]">{s.labels}</div>
+                  <div className="text-[12px] text-[var(--txt-3)]">Labels collected</div>
+                  <div className="mono mt-1 text-[26px] tracking-[-0.02em]">{s.labels}</div>
                 </div>
                 <div>
-                  <div className="text-[12px] text-[var(--ash-3)]">False-alarm rate</div>
-                  <div className="mt-1 text-[34px] font-semibold tracking-[-0.03em]" style={{ color: COLORS[s.id] }}>{pct(s.fp_rate)}</div>
+                  <div className="text-[12px] text-[var(--txt-3)]">False-alarm rate</div>
+                  <div className="mono mt-1 text-[26px] tracking-[-0.02em]" style={{ color: COLORS[s.id] }}>{pct(s.fp_rate)}</div>
                 </div>
               </div>
               <div className="mt-6 space-y-3.5">
                 {params.map(([label, key]) => (
                   <div key={key}>
                     <div className="mb-1.5 flex justify-between text-[12px]">
-                      <span className="text-[var(--ash-2)]">{label}</span>
-                      <span className="mono text-[var(--ash)]">{s.params[key].toFixed(2)}</span>
+                      <span className="text-[var(--txt-2)]">{label}</span>
+                      <span className="mono text-[var(--txt)]">{s.params[key].toFixed(2)}</span>
                     </div>
                     <div className="fw-bar"><i style={{ width: `${s.params[key] * 100}%`, transition: 'width 1s cubic-bezier(0.2,0.8,0.2,1)' }} /></div>
                   </div>
@@ -274,10 +274,10 @@ export default function Federation() {
           <div className="fw-panel p-6 md:p-8" data-fade>
             <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
               <div>
-                <div className="text-[13px] text-[var(--ash-3)]">False-alarm rate by round</div>
+                <div className="text-[13px] text-[var(--txt-3)]">False-alarm rate by round</div>
                 <div className="mt-1 text-[22px] font-medium tracking-[-0.02em]">Every round, fewer wasted engine runs</div>
               </div>
-              <div className="flex flex-wrap gap-4 text-[12px] text-[var(--ash-2)]">
+              <div className="flex flex-wrap gap-4 text-[12px] text-[var(--txt-2)]">
                 <span className="flex items-center gap-2"><i className="h-[3px] w-5 rounded bg-white" /> Global</span>
                 {stations.map(s => (
                   <span key={s.id} className="flex items-center gap-2"><i className="h-[2px] w-5 rounded" style={{ background: COLORS[s.id] }} /> {s.name}</span>
@@ -287,15 +287,15 @@ export default function Federation() {
             <Chart history={history} drawKey={drawKey} />
           </div>
           <div className="fw-panel flex flex-col p-6" data-fade data-delay={0.15}>
-            <div className="text-[13px] text-[var(--ash-3)]">What leaves a station</div>
+            <div className="text-[13px] text-[var(--txt-3)]">What leaves a station</div>
             <FlowDiagram running={running} />
-            <div className="mt-auto flex gap-3 rounded-xl border border-[var(--line)] bg-white/[0.02] p-4 text-[14px] leading-relaxed text-[var(--ash-2)]">
-              <Lock size={16} className="mt-0.5 shrink-0 text-[var(--flame)]" />
+            <div className="mt-auto flex gap-3 rounded-md border border-[var(--line)] bg-[var(--ink-1)] p-3.5 text-[13px] leading-relaxed text-[var(--txt-2)]">
+              <Lock size={16} className="mt-0.5 shrink-0 text-[var(--amber-hi)]" />
               <span>Only settings and label counts leave each station; camera images never do.</span>
             </div>
           </div>
         </div>
-        <p className="mono mt-4 text-[11px] text-[var(--ash-3)]">Illustrative data matching the /api/federation/status shape. Rounds run here are simulated in the browser.</p>
+        <p className="mono mt-4 text-[11px] text-[var(--txt-3)]">Illustrative data matching the /api/federation/status shape. Rounds run here are simulated in the browser.</p>
       </div>
     </section>
   )

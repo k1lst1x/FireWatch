@@ -33,6 +33,8 @@ export interface Incident {
   status: 'dismissed' | 'pending_review' | 'approved' | 'rejected'
   criticality: Criticality | null
   combined_score: number
+  frp?: number
+  confidence?: number
   reviewer_note: string | null
   created_at: string | null
   reviewed_at: string | null
@@ -44,6 +46,27 @@ export interface AnalyzeInput {
   lon: number
   image_url?: string
   camera_id?: string
+}
+
+export interface NearbyCamera {
+  id: string
+  name: string
+  lat: number
+  lon: number
+  distance_km: number
+  image_url: string
+}
+
+export interface NearbyCamerasResponse {
+  source: string
+  max_distance_km: number
+  cameras: NearbyCamera[]
+}
+
+export interface CameraDirectoryResponse {
+  source: string
+  camera_count: number
+  cameras: Array<Omit<NearbyCamera, 'distance_km'>>
 }
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
@@ -70,6 +93,9 @@ export const api = {
   status: () => call<PipelineStatus>('/ai/status'),
   incidents: () => call<Incident[]>('/ai/incidents'),
   demoImages: () => call<string[]>('/ai/demo-images'),
+  cameraDirectory: () => call<CameraDirectoryResponse>('/ai/cameras'),
+  nearbyCameras: (lat: number, lon: number) =>
+    call<NearbyCamerasResponse>(`/ai/cameras/nearby?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`),
   analyze: (body: AnalyzeInput) => call<PipelineResult>('/ai/analyze', { method: 'POST', body: JSON.stringify(body) }),
   review: (id: string, decision: 'approve' | 'reject', note?: string) =>
     call<Incident & { notification_sent: boolean }>(`/ai/incidents/${id}/review`, {

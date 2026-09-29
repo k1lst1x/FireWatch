@@ -71,7 +71,9 @@ class Settings:
     alertca_api_key: str = os.getenv("ALERTCA_API_KEY", "")
     camera_source: str = os.getenv("CAMERA_SOURCE", "alertwest").lower()
     alertwest_max_km: float = _env_float("ALERTWEST_MAX_KM", 60.0)
-    alertwest_cache_ttl_sec: int = _env_int("ALERTWEST_CACHE_TTL_SEC", 300)
+    # Refresh the public directory every minute so camera availability and the
+    # latest still-image references stay current for the dispatch console.
+    alertwest_cache_ttl_sec: int = _env_int("ALERTWEST_CACHE_TTL_SEC", 60)
 
     # Satellite — NASA LANCE FIRMS (global; includes CA). Free MAP_KEY:
     #   https://firms.modaps.eosdis.nasa.gov/api/area/
