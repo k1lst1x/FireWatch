@@ -8,7 +8,7 @@ from app.db.session import get_db
 from app.db.models import User
 from app.core.auth import create_access_token
 from app.core.security import hash_password, verify_password
-from app.dependencies import get_current_user
+from app.dependencies import require_user
 from app.schemas.routers import RegisterRequest, LoginRequest, TokenResponse
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -37,5 +37,5 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/me")
-async def me(current_user: User = Depends(get_current_user)):
+async def me(current_user: User = Depends(require_user)):
     return {"id": current_user.id, "email": current_user.email, "role": current_user.role.value}

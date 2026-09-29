@@ -26,6 +26,30 @@ from .http_retry import httpx_get_json
 logger = logging.getLogger(__name__)
 
 _OWM_CURRENT_URL = "https://api.openweathermap.org/data/2.5/weather"
+_OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
+
+
+async def fetch_open_meteo(lat: float, lon: float) -> dict[str, Any] | None:
+    try:
+        data = await httpx_get_json(
+            _OPEN_METEO_URL,
+            params={
+                "latitude": lat,
+                "longitude": lon,
+                "current": "relative_humidity_2m,wind_speed_10m,wind_direction_10m,temperature_2m",
+                "wind_speed_unit": "ms",
+            },
+            timeout=10.0,
+            max_attempts=2,
+            label="open_meteo",
+        )
+    except Exception as exc:
+        logger.warning("Open-Meteo fallback failed: %s", exc)
+        return None
+    cur = data.get("current") if isinstance(data, dict) else None
+    if not isinstance(cur, dict) or "wind_speed_10m" not in cur:
+        return None
+    return data
 
 
 def _owm_ok(payload: dict[str, Any]) -> bool:
@@ -49,6 +73,33 @@ class WeatherAgent(BaseAgent):
         humidity_factor = max(1.0 - humidity / 100.0, 0.0)
         return round(wind_factor * 0.6 + humidity_factor * 0.4, 3)
 
+    async def _fallback(self, lat: float, lon: float, t0: float, error: str, telemetry: dict[str, Any]) -> WeatherResult:
+        if settings.weather_fallback:
+            data = await fetch_open_meteo(lat, lon)
+            if data is not None:
+                cur = data["current"]
+                wind_speed = float(cur.get("wind_speed_10m") or 0.0)
+                wind_direction = float(cur.get("wind_direction_10m") or 0.0) % 360
+                humidity = float(cur.get("relative_humidity_2m") or 50.0)
+                return WeatherResult(
+                    wind_speed=wind_speed,
+                    wind_direction=wind_direction,
+                    humidity=humidity,
+                    spread_risk=self._spread_risk(wind_speed, humidity),
+                    raw={**data, "provider": "open-meteo", "primary_error": error},
+                    latency_ms=round((time.perf_counter() - t0) * 1000, 2),
+                    telemetry={**telemetry, "provider": "open-meteo"},
+                )
+        return WeatherResult(
+            wind_speed=0.0,
+            wind_direction=0.0,
+            humidity=0.0,
+            spread_risk=0.0,
+            raw={"error": error},
+            latency_ms=round((time.perf_counter() - t0) * 1000, 2),
+            telemetry=telemetry,
+        )
+
     async def run(self, *, lat: float, lon: float, **_) -> WeatherResult:
         t0 = time.perf_counter()
         if settings.is_mock:
@@ -66,16 +117,8 @@ class WeatherAgent(BaseAgent):
         max_attempts = settings.collection_http_max_attempts
 
         if not (settings.openweathermap_api_key or "").strip():
-            logger.warning("OPENWEATHERMAP_API_KEY missing; weather stage skipped")
-            return WeatherResult(
-                wind_speed=0.0,
-                wind_direction=0.0,
-                humidity=0.0,
-                spread_risk=0.0,
-                raw={"error": "missing OPENWEATHERMAP_API_KEY"},
-                latency_ms=round((time.perf_counter() - t0) * 1000, 2),
-                telemetry={"http_max_attempts": max_attempts},
-            )
+            logger.warning("OPENWEATHERMAP_API_KEY missing; trying keyless fallback")
+            return await self._fallback(lat, lon, t0, "missing OPENWEATHERMAP_API_KEY", {"http_max_attempts": max_attempts})
 
         cache = get_named_cache("openweather", settings.collection_cache_ttl_sec)
         wkey = _weather_cache_key(lat, lon)
@@ -109,41 +152,15 @@ class WeatherAgent(BaseAgent):
             )
         except httpx.HTTPError as exc:
             logger.warning("OpenWeatherMap HTTP error: %s", exc)
-            return WeatherResult(
-                wind_speed=0.0,
-                wind_direction=0.0,
-                humidity=0.0,
-                spread_risk=0.0,
-                raw={"error": str(exc)},
-                latency_ms=round((time.perf_counter() - t0) * 1000, 2),
-                telemetry={"http_max_attempts": max_attempts},
-            )
+            return await self._fallback(lat, lon, t0, str(exc), {"http_max_attempts": max_attempts})
         except Exception as exc:  # pragma: no cover
             logger.warning("OpenWeatherMap request failed: %s", exc)
-            return WeatherResult(
-                wind_speed=0.0,
-                wind_direction=0.0,
-                humidity=0.0,
-                spread_risk=0.0,
-                raw={"error": str(exc)},
-                latency_ms=round((time.perf_counter() - t0) * 1000, 2),
-                telemetry={"http_max_attempts": max_attempts},
-            )
+            return await self._fallback(lat, lon, t0, str(exc), {"http_max_attempts": max_attempts})
 
         if not isinstance(data, dict) or not _owm_ok(data):
             msg = data.get("message", "unknown error") if isinstance(data, dict) else "invalid response"
             logger.warning("OpenWeatherMap logical error: %s", msg)
-            base = dict(data) if isinstance(data, dict) else {}
-            base["error"] = f"openweather_api: {msg}"
-            return WeatherResult(
-                wind_speed=0.0,
-                wind_direction=0.0,
-                humidity=0.0,
-                spread_risk=0.0,
-                raw=base,
-                latency_ms=round((time.perf_counter() - t0) * 1000, 2),
-                telemetry={"http_max_attempts": max_attempts},
-            )
+            return await self._fallback(lat, lon, t0, f"openweather_api: {msg}", {"http_max_attempts": max_attempts})
 
         wind = data.get("wind", {}) or {}
         main = data.get("main", {}) or {}

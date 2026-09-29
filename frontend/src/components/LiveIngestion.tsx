@@ -1,76 +1,58 @@
-import { useState, useEffect } from 'react'
-import { Video } from 'lucide-react'
+import { Video, ImageOff } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
+import { useBayhawk } from '../context/BayhawkContext'
+import { imageSrc } from '../lib/api'
 
 export default function LiveIngestion() {
   const { theme } = useTheme()
   const dark = theme === 'dark'
-  const [fps, setFps] = useState(8.2)
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setFps(prev => {
-        const jitter = (Math.random() - 0.5) * 1.2
-        return Math.max(5, Math.min(15, prev + jitter))
-      })
-    }, 2000)
-    return () => clearInterval(interval)
-  }, [])
+  const { lastResult, lastInput, running } = useBayhawk()
+  const src = imageSrc(lastResult?.camera?.image_url ?? lastInput?.image_url)
+  const cam = lastResult?.camera
+  const detector = cam?.telemetry?.detector ? String(cam.telemetry.detector) : null
 
   return (
-    <div
-      className={`rounded-xl border overflow-hidden flex flex-col ${
-        dark ? 'bg-[#111] border-[#1e1e1e]' : 'bg-white border-gray-200'
-      }`}
-    >
-      {/* Header */}
+    <div className={`rounded-xl border overflow-hidden flex flex-col h-full ${dark ? 'bg-[#111] border-[#1e1e1e]' : 'bg-white border-gray-200'}`}>
       <div className={`flex items-center justify-between px-4 py-2.5 border-b ${dark ? 'border-[#1e1e1e]' : 'border-gray-100'}`}>
         <div className="flex items-center gap-2">
           <Video className={`h-3.5 w-3.5 ${dark ? 'text-gray-500' : 'text-gray-400'}`} />
           <span className={`text-xs font-semibold uppercase tracking-wider ${dark ? 'text-gray-400' : 'text-gray-600'}`}>
-            Live Ingestion Engine
+            Camera Agent
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span className={`text-[10px] font-mono ${dark ? 'text-gray-500' : 'text-gray-400'}`}>
-            FPS: {fps.toFixed(1)} (Sampled)
-          </span>
-        </div>
+        <span className={`text-[10px] font-mono ${dark ? 'text-gray-500' : 'text-gray-400'}`}>
+          {cam?.latency_ms != null ? `${cam.latency_ms.toFixed(0)} ms` : '—'}
+        </span>
       </div>
 
-      {/* Video area */}
       <div className="relative flex-1 min-h-[240px] bg-black flex items-center justify-center">
-        <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/70 backdrop-blur rounded-md px-2.5 py-1">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-          <span className="text-[10px] font-medium text-white uppercase tracking-wider">
-            Sierra Peak North
-          </span>
-        </div>
-
-        {/* Placeholder feed visualization */}
-        <div className="text-center">
-          <div className="relative w-48 h-32 mx-auto mb-3 rounded-lg overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/30 via-transparent to-amber-900/20" />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-16 h-16 border-2 border-brand/50 rounded-lg flex items-center justify-center">
-                <Video className="h-6 w-6 text-brand/70" />
-              </div>
-            </div>
-            <div className="absolute bottom-0 left-0 right-0 h-1 bg-brand/30">
-              <div className="h-full bg-brand animate-pulse" style={{ width: '60%' }} />
-            </div>
+        {src ? (
+          <img src={src} alt="Analyzed camera frame" className="absolute inset-0 h-full w-full object-contain" />
+        ) : (
+          <div className="text-center text-gray-500">
+            <ImageOff className="h-6 w-6 mx-auto mb-2" />
+            <p className="text-[10px] font-mono">NO FRAME ANALYZED YET</p>
           </div>
-          <p className="text-[10px] text-gray-500 font-mono">RTSP STREAM ACTIVE</p>
-        </div>
+        )}
 
-        {/* Scan lines overlay */}
-        <div
-          className="absolute inset-0 pointer-events-none opacity-5"
-          style={{
-            backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.03) 2px, rgba(255,255,255,0.03) 4px)',
-          }}
-        />
+        {lastInput && (
+          <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/70 backdrop-blur rounded-md px-2.5 py-1">
+            <span className={`h-1.5 w-1.5 rounded-full ${running ? 'bg-amber-400 animate-pulse' : 'bg-emerald-500'}`} />
+            <span className="text-[10px] font-medium text-white uppercase tracking-wider">
+              {lastInput.lat.toFixed(3)}, {lastInput.lon.toFixed(3)}
+            </span>
+          </div>
+        )}
+
+        {cam && !running && (
+          <div
+            className={`absolute bottom-3 left-3 rounded-md px-2.5 py-1 text-[11px] font-mono font-semibold ${
+              cam.detected ? 'bg-orange-500/90 text-white' : 'bg-emerald-600/90 text-white'
+            }`}
+          >
+            {cam.detected ? 'FIRE/SMOKE' : 'CLEAR'} · {(cam.confidence * 100).toFixed(0)}%{detector ? ` · ${detector}` : ''}
+          </div>
+        )}
       </div>
     </div>
   )

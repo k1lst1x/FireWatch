@@ -1,8 +1,18 @@
-import { useState } from 'react'
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
+import { useEffect, useState } from 'react'
+import { MapContainer, TileLayer, Marker, Popup, CircleMarker, useMap } from 'react-leaflet'
 import { Icon } from 'leaflet'
 import { Map as MapIcon } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
+import { useBayhawk } from '../context/BayhawkContext'
+import { CRIT_COLOR } from '../lib/api'
+
+function Recenter({ lat, lon }: { lat?: number; lon?: number }) {
+  const map = useMap()
+  useEffect(() => {
+    if (lat != null && lon != null && !Number.isNaN(lat) && !Number.isNaN(lon)) map.flyTo([lat, lon], 9, { duration: 1 })
+  }, [lat, lon, map])
+  return null
+}
 
 const CAMERA_LOCATIONS = [
   { name: 'Sierra Peak North', lat: 34.32, lng: -117.73, code: 'cam-01', online: true },
@@ -43,10 +53,11 @@ export default function SpatialMonitoring() {
   const { theme } = useTheme()
   const dark = theme === 'dark'
   const [layer, setLayer] = useState<LayerOption>('dark')
+  const { incidents, lastInput, select } = useBayhawk()
 
   return (
     <div
-      className={`rounded-xl border overflow-hidden flex flex-col ${
+      className={`rounded-xl border overflow-hidden flex flex-col h-full ${
         dark ? 'bg-[#111] border-[#1e1e1e]' : 'bg-white border-gray-200'
       }`}
     >
@@ -88,6 +99,31 @@ export default function SpatialMonitoring() {
             url={TILE_LAYERS[layer].url}
             attribution={TILE_LAYERS[layer].attribution}
           />
+          <Recenter lat={lastInput?.lat} lon={lastInput?.lon} />
+          {incidents.map(i => (
+            <CircleMarker
+              key={i.id}
+              center={[i.lat, i.lon]}
+              radius={i.status === 'dismissed' ? 5 : 10}
+              pathOptions={{
+                color: i.criticality ? CRIT_COLOR[i.criticality] : '#6b7280',
+                fillColor: i.criticality ? CRIT_COLOR[i.criticality] : '#6b7280',
+                fillOpacity: i.status === 'rejected' ? 0.15 : 0.55,
+                weight: 2,
+              }}
+              eventHandlers={{ click: () => select(i) }}
+            >
+              <Popup>
+                <div className="text-xs">
+                  <strong>{i.criticality ?? 'Dismissed'}</strong>
+                  <br />
+                  <span className="text-gray-500">{i.status.replace('_', ' ')}</span>
+                  <br />
+                  score {i.combined_score.toFixed(2)}
+                </div>
+              </Popup>
+            </CircleMarker>
+          ))}
           {CAMERA_LOCATIONS.map(cam => (
             <Marker key={cam.code} position={[cam.lat, cam.lng]} icon={cameraIcon}>
               <Popup>

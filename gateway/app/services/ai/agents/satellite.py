@@ -9,7 +9,9 @@ California falls entirely within valid bounds for this product.
 """
 from __future__ import annotations
 
+import csv
 import hashlib
+import io
 import logging
 import time
 from typing import Any
@@ -22,7 +24,7 @@ from app.services.ai.schemas.pipeline import SatelliteResult
 from .base import BaseAgent
 from .collection_cache import get_named_cache
 from .geo_hints import log_if_outside_california
-from .http_retry import httpx_get_json
+from .http_retry import httpx_get_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +37,22 @@ def _frp_value(hotspot: dict[str, Any]) -> float | None:
         return float(raw)
     except (TypeError, ValueError):
         return None
+
+
+class FirmsApiError(Exception):
+    pass
+
+
+async def fetch_firms_rows(url: str, *, timeout: float, max_attempts: int) -> dict[str, Any]:
+    body = await httpx_get_bytes(url, timeout=timeout, max_attempts=max_attempts, label="nasa_firms")
+    text = body.decode("utf-8", errors="replace").strip()
+    if not text:
+        return {"data": []}
+    first = text.splitlines()[0]
+    if "latitude" not in first.lower():
+        raise FirmsApiError(text[:200])
+    rows = list(csv.DictReader(io.StringIO(text)))
+    return {"data": rows}
 
 
 def _satellite_cache_key(lat: float, lon: float, bbox_half: float, map_key: str) -> str:
@@ -96,12 +114,12 @@ class SatelliteAgent(BaseAgent):
         west, south, east, north = lon - bbox_half, lat - bbox_half, lon + bbox_half, lat + bbox_half
         bbox = f"{west},{south},{east},{north}"
         url = (
-            f"https://firms.modaps.eosdis.nasa.gov/api/area/json/"
-            f"{settings.nasa_firms_map_key}/VIIRS_SNPP_NRT/{bbox}/1"
+            f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/"
+            f"{settings.nasa_firms_map_key}/{settings.firms_source}/{bbox}/{settings.firms_day_range}"
         )
 
         try:
-            data = await httpx_get_json(url, timeout=18.0, max_attempts=max_attempts, label="nasa_firms")
+            data = await fetch_firms_rows(url, timeout=18.0, max_attempts=max_attempts)
         except httpx.HTTPError as exc:
             logger.warning("NASA FIRMS HTTP error: %s", exc)
             return SatelliteResult(

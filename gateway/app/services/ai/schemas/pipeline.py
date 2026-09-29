@@ -3,7 +3,10 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel
+import uuid
+from datetime import datetime, timezone
+
+from pydantic import BaseModel, Field
 
 
 class ConfirmationStatus(str, Enum):
@@ -19,12 +22,12 @@ class CriticalityLevel(str, Enum):
 
 
 class AlertEvent(BaseModel):
-    event_id: str
-    lat: float
-    lon: float
+    event_id: str = Field(default_factory=lambda: f"evt-{uuid.uuid4().hex[:8]}")
+    lat: float = Field(ge=-90, le=90)
+    lon: float = Field(ge=-180, le=180)
     camera_id: Optional[str] = None
     image_url: Optional[str] = None
-    timestamp: str
+    timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
 class CameraResult(BaseModel):
@@ -64,18 +67,21 @@ class FusionResult(BaseModel):
 class ReasoningResult(BaseModel):
     scene_description: str
     key_observations: List[str]
+    source: Optional[str] = None
 
 
 class ClassificationResult(BaseModel):
     criticality: CriticalityLevel
     score: float
     reasoning: str
+    source: Optional[str] = None
 
 
 class SuggestionResult(BaseModel):
     action_plan: List[str]
     alert_message: str
     recommended_resources: List[str]
+    source: Optional[str] = None
 
 
 class OutputResult(BaseModel):
@@ -83,6 +89,7 @@ class OutputResult(BaseModel):
     dashboard_updated: bool
     incident_id: str
     logged: bool
+    review_status: Optional[str] = None
 
 
 class PipelineResult(BaseModel):

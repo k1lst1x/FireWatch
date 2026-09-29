@@ -15,6 +15,7 @@ Inference:
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import pathlib
 import tempfile
@@ -30,6 +31,9 @@ from app.services.ai.schemas.pipeline import CameraResult
 from .base import BaseAgent
 from .geo_hints import log_if_outside_california
 from .http_retry import httpx_get_bytes, httpx_get_json
+from .images import _PROJECT_ROOT, load_image_bytes, media_type_for
+from .llm import llm_available
+from .vision import vision_fire_check
 
 logger = logging.getLogger(__name__)
 
@@ -88,8 +92,36 @@ class CameraAgent(BaseAgent):
 
     def _model_instance(self) -> YOLO:
         if self._model is None:
-            self._model = YOLO(settings.yolo_model_path)
+            model = YOLO(settings.yolo_model_path)
+            names = {str(n).lower() for n in dict(model.names).values()}
+            if not names & _FIRE_CLASSES:
+                raise RuntimeError(f"YOLO weights {settings.yolo_model_path} have no fire/smoke classes")
+            self._model = model
         return self._model
+
+    @staticmethod
+    def _yolo_weights_present() -> bool:
+        p = pathlib.Path(settings.yolo_model_path)
+        if not p.is_absolute():
+            p = _PROJECT_ROOT / p
+        return p.is_file()
+
+    async def _detect(self, url: str) -> tuple[float, bool, str, str | None]:
+        yolo_error = None
+        if self._yolo_weights_present():
+            try:
+                conf, det = await self._run_yolo(url)
+                return conf, det, "yolo", None
+            except Exception as exc:
+                yolo_error = str(exc)
+                logger.warning("YOLO failed, trying vision LLM: %s", exc)
+        else:
+            yolo_error = f"weights not found: {settings.yolo_model_path}"
+        if llm_available():
+            data = await load_image_bytes(url)
+            conf, det = await vision_fire_check(data, media_type_for(url, data))
+            return conf, det, "vision_llm", yolo_error
+        raise RuntimeError(f"no fire detector available ({yolo_error}; no LLM key)")
 
     async def _fetch_alertca(self, lat: float, lon: float) -> dict[str, Any]:
         return await httpx_get_json(
@@ -103,12 +135,7 @@ class CameraAgent(BaseAgent):
 
     async def _run_yolo(self, url: str) -> tuple[float, bool]:
         """Download image from url, run YOLOv8, return (confidence, detected)."""
-        content = await httpx_get_bytes(
-            url,
-            timeout=20.0,
-            max_attempts=settings.collection_http_max_attempts,
-            label="camera_image",
-        )
+        content = await load_image_bytes(url)
 
         with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
             tmp.write(content)
@@ -116,7 +143,8 @@ class CameraAgent(BaseAgent):
 
         try:
             model = self._model_instance()
-            results = model.predict(
+            results = await asyncio.to_thread(
+                model.predict,
                 tmp_path,
                 imgsz=settings.yolo_inference_imgsz,
                 verbose=False,
@@ -126,7 +154,7 @@ class CameraAgent(BaseAgent):
             detected = False
             for r in results:
                 for box in r.boxes:
-                    cls_name = model.names[int(box.cls)]
+                    cls_name = str(model.names[int(box.cls)]).lower()
                     if cls_name in _FIRE_CLASSES:
                         conf = float(box.conf)
                         if conf > best_conf:
@@ -183,12 +211,14 @@ class CameraAgent(BaseAgent):
 
             url = first_camera_image_url(raw)
 
-        confidence, detected = 0.0, False
+        confidence, detected, detector = 0.0, False, None
         if url:
             try:
-                confidence, detected = await self._run_yolo(url)
+                confidence, detected, detector, yolo_err = await self._detect(url)
+                if yolo_err:
+                    raw = {**raw, "yolo_error": yolo_err}
             except Exception as exc:
-                logger.warning("YOLO / image download failed: %s", exc)
+                logger.warning("Camera detection failed: %s", exc)
                 raw = {**raw, "yolo_error": str(exc)}
 
         return CameraResult(
@@ -200,5 +230,6 @@ class CameraAgent(BaseAgent):
             telemetry={
                 "http_max_attempts": settings.collection_http_max_attempts,
                 "yolo_imgsz": settings.yolo_inference_imgsz,
+                "detector": detector,
             },
         )

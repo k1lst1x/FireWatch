@@ -18,3 +18,12 @@ def _isolate_collection_caches() -> None:
     clear_all_collection_caches()
     yield
     clear_all_collection_caches()
+
+
+@pytest.fixture(autouse=True)
+def _no_live_fallbacks(monkeypatch) -> None:
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "weather_fallback", False)
+    monkeypatch.setattr(settings, "openai_api_key", "")
+    monkeypatch.setattr(settings, "anthropic_api_key", "")

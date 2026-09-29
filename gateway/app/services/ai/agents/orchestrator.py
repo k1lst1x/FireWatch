@@ -12,6 +12,9 @@ from app.services.ai.schemas.pipeline import (
     WeatherResult,
 )
 
+from app.config import settings
+
+from . import replay
 from .base import BaseAgent
 from .camera import CameraAgent
 from .classification import ClassificationAgent
@@ -43,13 +46,18 @@ class OrchestratorAgent(BaseAgent):
 
         # ── Stage 1: parallel data collection ─────────────────────────────────
         logger.info("[%s] Stage 1 – camera / satellite / weather", event.event_id)
-        gather_out = await asyncio.gather(
-            self.camera.run(**coords, image_url=event.image_url),
-            self.satellite.run(**coords),
-            self.weather.run(**coords),
-            return_exceptions=True,
-        )
-        camera_res, satellite_res, weather_res = gather_out
+        replayed = replay.load(event) if settings.replay_mode == "replay" else None
+        if replayed is not None:
+            logger.info("[%s] Stage 1 replayed from recording", event.event_id)
+            camera_res, satellite_res, weather_res = replayed
+        else:
+            gather_out = await asyncio.gather(
+                self.camera.run(**coords, image_url=event.image_url),
+                self.satellite.run(**coords),
+                self.weather.run(**coords),
+                return_exceptions=True,
+            )
+            camera_res, satellite_res, weather_res = gather_out
         if isinstance(camera_res, asyncio.CancelledError):
             raise camera_res
         if isinstance(satellite_res, asyncio.CancelledError):
@@ -83,6 +91,8 @@ class OrchestratorAgent(BaseAgent):
         result.camera = camera_res
         result.satellite = satellite_res
         result.weather = weather_res
+        if settings.replay_mode == "record" and replayed is None:
+            replay.save(event, camera_res, satellite_res, weather_res)
 
         # ── Stage 2: fusion ────────────────────────────────────────────────────
         logger.info("[%s] Stage 2 – fusion", event.event_id)
@@ -93,42 +103,50 @@ class OrchestratorAgent(BaseAgent):
             logger.info("[%s] Dismissed – pipeline stopped.", event.event_id)
             return result
 
-        # ── Stage 3: reasoning (VLM) ───────────────────────────────────────────
-        logger.info("[%s] Stage 3 – reasoning", event.event_id)
-        reasoning_res = await self.reasoning.run(
-            image_url=event.image_url,
-            weather=weather_res,
-            confirmation=fusion_res.status,
-            satellite=satellite_res,
-        )
-        result.reasoning = reasoning_res
+        try:
+            # ── Stage 3: reasoning (VLM) ───────────────────────────────────────────
+            logger.info("[%s] Stage 3 – reasoning", event.event_id)
+            reasoning_res = await self.reasoning.run(
+                image_url=camera_res.image_url or event.image_url,
+                weather=weather_res,
+                confirmation=fusion_res.status,
+                satellite=satellite_res,
+            )
+            result.reasoning = reasoning_res
 
-        # ── Stage 4: classification ────────────────────────────────────────────
-        logger.info("[%s] Stage 4 – classification", event.event_id)
-        classification_res = await self.classification.run(
-            reasoning=reasoning_res,
-            weather=weather_res,
-            fusion=fusion_res,
-        )
-        result.classification = classification_res
+            # ── Stage 4: classification ────────────────────────────────────────────
+            logger.info("[%s] Stage 4 – classification", event.event_id)
+            classification_res = await self.classification.run(
+                reasoning=reasoning_res,
+                weather=weather_res,
+                fusion=fusion_res,
+            )
+            result.classification = classification_res
 
-        # ── Stage 5: suggestion ────────────────────────────────────────────────
-        logger.info("[%s] Stage 5 – suggestion", event.event_id)
-        suggestion_res = await self.suggestion.run(
-            classification=classification_res,
-            reasoning=reasoning_res,
-            weather=weather_res,
-        )
-        result.suggestion = suggestion_res
+            # ── Stage 5: suggestion ────────────────────────────────────────────────
+            logger.info("[%s] Stage 5 – suggestion", event.event_id)
+            suggestion_res = await self.suggestion.run(
+                classification=classification_res,
+                reasoning=reasoning_res,
+                weather=weather_res,
+                lat=event.lat,
+                lon=event.lon,
+            )
+            result.suggestion = suggestion_res
 
-        # ── Stage 6: output ────────────────────────────────────────────────────
-        logger.info("[%s] Stage 6 – output", event.event_id)
-        output_res = await self.output.run(
-            event=event,
-            suggestion=suggestion_res,
-            classification=classification_res,
-        )
-        result.output = output_res
+            # ── Stage 6: output ────────────────────────────────────────────────────
+            logger.info("[%s] Stage 6 – output", event.event_id)
+            output_res = await self.output.run(
+                event=event,
+                suggestion=suggestion_res,
+                classification=classification_res,
+            )
+            result.output = output_res
+
+        except Exception as exc:
+            logger.exception("[%s] Post-fusion stage failed", event.event_id)
+            result.error = f"{type(exc).__name__}: {exc}"
+            return result
 
         logger.info(
             "[%s] Pipeline complete – criticality=%s incident=%s",

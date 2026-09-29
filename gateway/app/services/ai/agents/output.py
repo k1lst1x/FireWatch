@@ -21,6 +21,19 @@ logger = logging.getLogger(__name__)
 class OutputAgent(BaseAgent):
     name = "output"
 
+    async def dispatch(self, payload: dict) -> bool:
+        if not settings.dashboard_webhook_url:
+            logger.warning("DASHBOARD_WEBHOOK_URL not configured – approval recorded, no webhook sent.")
+            return False
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                resp = await client.post(settings.dashboard_webhook_url, json=payload)
+                resp.raise_for_status()
+            return True
+        except Exception as exc:
+            logger.error("Notification delivery failed: %s", exc)
+            return False
+
     async def _send_notification(
         self,
         suggestion: SuggestionResult,
@@ -63,6 +76,16 @@ class OutputAgent(BaseAgent):
                 dashboard_updated=False,
                 incident_id=incident_id,
                 logged=True,
+                review_status="pending_review" if settings.require_human_approval else None,
+            )
+        if settings.require_human_approval:
+            logger.info("Incident %s held for dispatcher review", incident_id)
+            return OutputResult(
+                notification_sent=False,
+                dashboard_updated=False,
+                incident_id=incident_id,
+                logged=True,
+                review_status="pending_review",
             )
         notification_sent = await self._send_notification(suggestion, classification, incident_id)
 

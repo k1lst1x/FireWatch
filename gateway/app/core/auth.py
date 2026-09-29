@@ -1,7 +1,7 @@
 #authentication for the api gateway
 
 #JWT create/decode/verify logic
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 #python-jose is the library that handles JWT encoding and decoding. jwt is the object that does the actual work.
 #JWTError is the exception it raises when something is wrong with a token.
 from jose import JWTError, jwt
@@ -13,7 +13,7 @@ from app.config import settings
 
 #define the secret key and algorithm for the JWT
 def create_access_token(subject: str) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
     return jwt.encode(
         {"sub": subject, "exp": expire},
         settings.secret_key,

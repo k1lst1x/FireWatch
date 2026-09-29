@@ -23,20 +23,26 @@ def _env_float(name: str, default: float) -> float:
 
 class Settings:
     # Gateway
-    secret_key: str = os.getenv("SECRET_KEY")
-    algorithm: str = os.getenv("ALGORITHM")
-    access_token_expire_minutes: str = os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES")
+    secret_key: str = os.getenv("SECRET_KEY") or "dev-secret-change-me"
+    algorithm: str = os.getenv("ALGORITHM") or "HS256"
+    access_token_expire_minutes: int = _env_int("ACCESS_TOKEN_EXPIRE_MINUTES", 720)
+    auth_required: bool = os.getenv("AUTH_REQUIRED", "false").lower() == "true"
 
     # CORS
-    cors_origin: str = os.getenv("CORS_ORIGIN")
+    cors_origin: str = os.getenv("CORS_ORIGIN") or "http://localhost:5173,http://localhost:3000"
 
     # DATABASE
-    database_url: str = os.getenv("DATABASE_URL")
+    database_url: str = os.getenv("DATABASE_URL") or "sqlite+aiosqlite:///./bayhawk.db"
 
     # ── AI pipeline ────────────────────────────────────────────────────────────
     # Vision-language model (OpenAI)
+    llm_provider: str = os.getenv("LLM_PROVIDER", "").lower()
+    anthropic_api_key: str = os.getenv("ANTHROPIC_API_KEY", "")
+    anthropic_model: str = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5-5")
     openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
-    openai_model: str = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
+    openai_model: str = os.getenv("OPENAI_MODEL", "gpt-4o")
+    openai_base_url: str = os.getenv("OPENAI_BASE_URL", "")
+    llm_timeout_sec: float = _env_float("LLM_TIMEOUT_SEC", 45.0)
 
     # Camera — ALERTCalifornia (UC San Diego), California camera network:
     #   https://alertcalifornia.org/  |  Partner API token → ALERTCA_API_KEY
@@ -49,9 +55,10 @@ class Settings:
     # Weather — OpenWeatherMap current weather (lat/lon; use CA coords for CA incidents):
     #   https://openweathermap.org/api
     openweathermap_api_key: str = os.getenv("OPENWEATHERMAP_API_KEY", "")
+    weather_fallback: bool = os.getenv("WEATHER_FALLBACK_OPEN_METEO", "true").lower() == "true"
 
     # YOLOv8 weights — accuracy/speed tradeoff (larger custom-trained models: better accuracy, slower).
-    yolo_model_path: str = os.getenv("YOLO_MODEL_PATH", "yolov8n.pt")
+    yolo_model_path: str = os.getenv("YOLO_MODEL_PATH", "models/fire_yolov8n.pt")
     # Inference square size (pixels). Lower = faster, slightly worse small-object accuracy (typ. 320–640).
     yolo_inference_imgsz: int = _env_int("YOLO_INFERENCE_IMGSZ", 640)
 
@@ -63,6 +70,8 @@ class Settings:
     collection_cache_ttl_sec: int = _env_int("COLLECTION_CACHE_TTL_SEC", 0)
 
     # FIRMS bbox half-width (degrees). Larger = more context & slightly slower payloads; smaller = tighter / faster.
+    firms_source: str = os.getenv("FIRMS_SOURCE", "VIIRS_SNPP_NRT")
+    firms_day_range: int = _env_int("FIRMS_DAY_RANGE", 1)
     firms_bbox_half_deg: float = _env_float("FIRMS_BBOX_HALF_DEG", 0.1)
     # Scale max FRP (MW) to thermal_confidence 1.0 — tune with validation data.
     firms_frp_normalize: float = _env_float("FIRMS_FRP_NORMALIZE", 100.0)
@@ -74,9 +83,13 @@ class Settings:
 
     # Output – webhook URL for dashboard / push notifications
     dashboard_webhook_url: str = os.getenv("DASHBOARD_WEBHOOK_URL", "")
+    require_human_approval: bool = os.getenv("REQUIRE_HUMAN_APPROVAL", "true").lower() == "true"
 
     # Mock mode – bypasses external API / LLM calls where agents support it (local dev / tests)
     is_mock: bool = os.getenv("IS_MOCK", "false").lower() == "true"
+
+    replay_mode: str = os.getenv("REPLAY_MODE", "off").lower()
+    replay_dir: str = os.getenv("REPLAY_DIR", "replay")
 
     def __init__(self) -> None:
         w = self.fusion_camera_weight

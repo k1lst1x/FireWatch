@@ -109,7 +109,7 @@ async def test_satellite_agent_hotspots_dict_payload():
 
     with (
         patch(
-            "app.services.ai.agents.satellite.httpx_get_json",
+            "app.services.ai.agents.satellite.fetch_firms_rows",
             new_callable=AsyncMock,
             return_value=firms_payload,
         ),
@@ -125,7 +125,7 @@ async def test_satellite_agent_hotspots_dict_payload():
 
 @pytest.mark.asyncio
 async def test_satellite_agent_missing_map_key():
-    with patch("app.services.ai.agents.satellite.httpx_get_json", new_callable=AsyncMock) as get_json:
+    with patch("app.services.ai.agents.satellite.fetch_firms_rows", new_callable=AsyncMock) as get_json:
         result = await SatelliteAgent().run(lat=1.0, lon=1.0)
 
     get_json.assert_not_called()
@@ -139,7 +139,7 @@ async def test_satellite_agent_hotspots_list_payload_capped():
 
     with (
         patch(
-            "app.services.ai.agents.satellite.httpx_get_json",
+            "app.services.ai.agents.satellite.fetch_firms_rows",
             new_callable=AsyncMock,
             return_value=firms_payload,
         ),
@@ -155,7 +155,7 @@ async def test_satellite_agent_hotspots_list_payload_capped():
 async def test_satellite_agent_no_hotspots():
     with (
         patch(
-            "app.services.ai.agents.satellite.httpx_get_json",
+            "app.services.ai.agents.satellite.fetch_firms_rows",
             new_callable=AsyncMock,
             return_value={"data": []},
         ),

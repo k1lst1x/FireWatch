@@ -126,7 +126,7 @@ async def test_satellite_schema_with_hotspots():
     firms = {"data": [{"frp": 45.0, "latitude": "37", "longitude": "-122"}]}
     with (
         patch(
-            "app.services.ai.agents.satellite.httpx_get_json",
+            "app.services.ai.agents.satellite.fetch_firms_rows",
             new_callable=AsyncMock,
             return_value=firms,
         ),
@@ -147,7 +147,7 @@ async def test_satellite_schema_with_hotspots():
 async def test_satellite_schema_empty_and_missing_key():
     with (
         patch(
-            "app.services.ai.agents.satellite.httpx_get_json",
+            "app.services.ai.agents.satellite.fetch_firms_rows",
             new_callable=AsyncMock,
             return_value={"data": []},
         ),
