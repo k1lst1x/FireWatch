@@ -126,7 +126,7 @@ export default function CityMap({
         console.error('[map] city build failed', err)
         if (!signal.cancelled) {
           setReady(true)
-          readyRef.current('baked')
+          readyRef.current('cloud')
         }
       })
 

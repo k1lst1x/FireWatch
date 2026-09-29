@@ -52,10 +52,10 @@ async function initGoogle3DTiles() {
 function injectCinematicEnvironmentStyle() {
     const scene = viewer.scene;
     
-    // Enable shadowing subsystem architecture
-    scene.shadowMap.enabled = true;
-    scene.shadowMap.softShadows = true;
-    scene.shadowMap.size = 2048;
+    // Disable local shadow maps to prevent PC crashes
+    scene.shadowMap.enabled = false;
+    viewer.resolutionScale = 1.0;
+    scene.globe.maximumScreenSpaceError = 3.5;
 
     scene.globe.baseColor = Cesium.Color.fromCssColorString('#0a111a');
     scene.backgroundColor = Cesium.Color.fromCssColorString('#070b12');

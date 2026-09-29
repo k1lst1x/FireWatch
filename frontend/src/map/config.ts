@@ -34,10 +34,10 @@ export const CONFIG = {
   },
 } as const
 
-export type BasemapTier = 'photorealistic' | 'ion' | 'baked'
+export type BasemapTier = 'photorealistic' | 'ion' | 'cloud'
 
 export const TIER_LABEL: Record<BasemapTier, string> = {
-  photorealistic: 'Google Photorealistic 3D',
-  ion: 'Cesium OSM Buildings · San Francisco',
-  baked: 'San Francisco Footprints · Offline 3D',
+  photorealistic: 'Google Cloud Photorealistic 3D',
+  ion: 'Cesium Cloud OSM 3D Stream',
+  cloud: 'Cloud Satellite & Geospatial Stream',
 }
