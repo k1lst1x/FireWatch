@@ -17,6 +17,7 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.0",
     "aiosqlite>=0.20",
     "dill>=0.3",
+    "flwr[simulation]>=1.20",
 ]
 
 [dependency-groups]
@@ -30,3 +31,4 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 pythonpath = ["gateway"]
 testpaths = ["gateway/tests"]
+markers = ["slow: runs a real Flower simulation (~15s)"]

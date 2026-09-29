@@ -22,8 +22,19 @@ class FusionAgent(BaseAgent):
         **_,
     ) -> FusionResult:
         w_cam = settings.fusion_camera_weight
-        w_therm = round(1.0 - w_cam, 4)
         threshold = settings.fusion_threshold
+        thermal_only_threshold = settings.fusion_thermal_only_threshold
+        source = "config"
+        if settings.federated_fusion:
+            from app.federation.state import STATE_PATH, global_params
+
+            if STATE_PATH.is_file():
+                gp = global_params()
+                w_cam = float(gp["camera_weight"])
+                threshold = float(gp["fusion_threshold"])
+                thermal_only_threshold = float(gp["thermal_only_threshold"])
+                source = "federated"
+        w_therm = round(1.0 - w_cam, 4)
 
         combined = round(
             camera.confidence * w_cam + satellite.thermal_confidence * w_therm,
@@ -31,7 +42,7 @@ class FusionAgent(BaseAgent):
         )
 
         both_positive = camera.detected and satellite.hotspot_detected
-        thermal_only = satellite.hotspot_detected and satellite.thermal_confidence >= settings.fusion_thermal_only_threshold
+        thermal_only = satellite.hotspot_detected and satellite.thermal_confidence >= thermal_only_threshold
 
         if combined >= threshold or both_positive or thermal_only:
             status = ConfirmationStatus.CONFIRMED
@@ -57,6 +68,8 @@ class FusionAgent(BaseAgent):
             "weight_thermal": w_therm,
             "both_positive_override": both_positive,
             "thermal_only_override": thermal_only,
+            "thermal_only_threshold": thermal_only_threshold,
+            "params_source": source,
         }
 
         return FusionResult(status=status, combined_score=combined, reason=reason, telemetry=telemetry)

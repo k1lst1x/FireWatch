@@ -82,6 +82,7 @@ class Settings:
     # Fusion — accuracy vs false positives (higher threshold = fewer CONFIRMED).
     fusion_threshold: float = _env_float("FUSION_THRESHOLD", 0.40)
     # Weight on camera YOLO vs thermal (thermal weight = 1 - this). Sum implied = 1.0.
+    federated_fusion: bool = os.getenv("FEDERATED_FUSION", "true").lower() == "true"
     fusion_thermal_only_threshold: float = _env_float("FUSION_THERMAL_ONLY_THRESHOLD", 0.6)
     fusion_camera_weight: float = _env_float("FUSION_CAMERA_WEIGHT", 0.6)
 

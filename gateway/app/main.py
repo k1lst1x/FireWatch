@@ -11,6 +11,7 @@ from app.config import settings
 from app.db.session import init_db
 from app.routers.ai import router as ai_router
 from app.routers.auth import router as auth_router
+from app.routers.federation import router as federation_router
 from app.services.ai.integrations import integration_status
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -37,6 +38,7 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(ai_router)
+app.include_router(federation_router)
 
 _DEMO_DIR = pathlib.Path(__file__).resolve().parents[2] / "demo_images"
 _DEMO_DIR.mkdir(exist_ok=True)
