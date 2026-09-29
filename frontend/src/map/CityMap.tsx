@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { CONFIG, type BasemapTier } from './config'
+import {
+  CONFIG,
+  DARK_SOURCES,
+  SATELLITE_SOURCE,
+  STREET_SOURCES,
+  type BasemapTier,
+  type TileSource,
+} from './config'
 import type { CameraDirectoryResponse, Criticality, Incident } from '../lib/api'
 
 interface Props {
@@ -29,6 +36,30 @@ function getIncidentColor(criticality: Criticality | null | undefined): string {
     default:
       return '#ff6b1f'
   }
+}
+
+/**
+ * Builds a base (+ optional label) tile layer group for a source. Raw light
+ * tiles get the `fw-tiles-invert` class so they render as a dark tactical map.
+ */
+function buildTileLayer(src: TileSource): { group: L.LayerGroup; base: L.TileLayer } {
+  const common: L.TileLayerOptions = {
+    maxZoom: 19,
+    maxNativeZoom: src.maxNativeZoom,
+    attribution: src.attribution,
+    crossOrigin: true,
+    className: src.invert ? 'fw-tiles-invert' : undefined,
+    ...(src.subdomains ? { subdomains: src.subdomains } : {}),
+  }
+
+  const base = L.tileLayer(src.url, common)
+  const group = L.layerGroup([base])
+
+  if (src.labelsUrl) {
+    group.addLayer(L.tileLayer(src.labelsUrl, { ...common, attribution: '' }))
+  }
+
+  return { group, base }
 }
 
 export default function CityMap({
@@ -68,43 +99,70 @@ export default function CityMap({
       center: [CONFIG.initialView.lat, CONFIG.initialView.lon],
       zoom: CONFIG.initialView.zoom,
       zoomControl: false,
-      attributionControl: false,
+      attributionControl: true,
       preferCanvas: true,
       minZoom: 4,
       maxZoom: 18,
     })
     mapRef.current = map
 
-    // 2. Base Tile Layers
-    const darkLayer = L.tileLayer(CONFIG.cartoDarkUrl, {
-      subdomains: 'abcd',
-      maxZoom: 19,
-      attribution: '&copy; CartoDB &copy; OpenStreetMap',
-    })
+    // 2. Base tile layers. Each chain falls forward to the next provider if a
+    //    source is unreachable or starts refusing tiles, so the map always
+    //    renders real imagery instead of an empty/watermarked canvas.
+    const layerCleanups: Array<() => void> = []
 
-    const osmLayer = L.tileLayer(CONFIG.osmUrl, {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors',
-    })
+    /**
+     * Adds a base layer that self-heals: on a sustained run of tile errors it
+     * swaps itself for the next provider in the chain, in place, in the
+     * layers control.
+     */
+    const addResilientBase = (chain: TileSource[], name: string, active: boolean) => {
+      let index = 0
+      let current = buildTileLayer(chain[0])
 
-    const satelliteLayer = L.tileLayer(CONFIG.satelliteUrl, {
-      maxZoom: 19,
-      attribution: '&copy; Esri World Imagery',
-    })
+      const wire = () => {
+        let errors = 0
+        const onError = () => {
+          errors += 1
+          // A handful of missing tiles is normal at the edges; a sustained run
+          // means the provider is down or blocking us.
+          if (errors < 5 || index >= chain.length - 1) return
 
-    // Add dark layer by default
-    darkLayer.addTo(map)
+          const wasActive = map.hasLayer(current.group)
+          map.removeLayer(current.group)
+          layersControl.removeLayer(current.group)
 
-    // Base layers selector
-    const baseMaps = {
-      'Tactical Dark': darkLayer,
-      'Street Map': osmLayer,
-      'Satellite': satelliteLayer,
+          index += 1
+          current = buildTileLayer(chain[index])
+          layersControl.addBaseLayer(current.group, name)
+          if (wasActive) current.group.addTo(map)
+          wire()
+        }
+        current.base.on('tileerror', onError)
+        layerCleanups.push(() => current.base.off('tileerror', onError))
+      }
+
+      if (active) current.group.addTo(map)
+      return { get group() { return current.group }, wire }
     }
 
     // Controls: Zoom on bottom-right, Layers toggle next to it
     L.control.zoom({ position: 'bottomright' }).addTo(map)
-    L.control.layers(baseMaps, undefined, { position: 'bottomright', collapsed: true }).addTo(map)
+    const layersControl = L.control
+      .layers(undefined, undefined, { position: 'bottomright', collapsed: true })
+      .addTo(map)
+
+    // Street map is the default view.
+    const street = addResilientBase(STREET_SOURCES, 'Street Map', true)
+    const dark = addResilientBase(DARK_SOURCES, 'Tactical Dark', false)
+    const satelliteLayer = buildTileLayer(SATELLITE_SOURCE).group
+
+    layersControl.addBaseLayer(street.group, 'Street Map')
+    layersControl.addBaseLayer(dark.group, 'Tactical Dark')
+    layersControl.addBaseLayer(satelliteLayer, 'Satellite')
+
+    street.wire()
+    dark.wire()
 
     // 3. Telemetry Overlay Groups
     incidentsLayerRef.current = L.layerGroup().addTo(map)
@@ -114,7 +172,7 @@ export default function CityMap({
     requestAnimationFrame(() => {
       map.invalidateSize()
       setReady(true)
-      readyRef.current('tactical-dark')
+      readyRef.current('standard')
     })
 
     const onResize = () => map.invalidateSize()
@@ -130,6 +188,7 @@ export default function CityMap({
 
     return () => {
       window.removeEventListener('resize', onResize)
+      layerCleanups.forEach(fn => fn())
       incidentsLayerRef.current?.clearLayers()
       camerasLayerRef.current?.clearLayers()
       map.remove()

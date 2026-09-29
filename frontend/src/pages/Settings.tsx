@@ -72,7 +72,7 @@ export default function Settings() {
   useEffect(() => { void refresh() }, [refresh])
 
   const browserKeys = useMemo(() => [
-    { label: 'Tactical Basemap', environment: 'VITE_MAP_TILES', configured: true, used_for: 'High-performance 2D CartoDB Dark tactical tiles (Zero GPU crash)' },
+    { label: 'Tactical Basemap', environment: 'VITE_MAP_TILES', configured: true, used_for: 'Key-free Esri Dark Gray tactical tiles with automatic provider fallback (Zero GPU crash)' },
   ], [])
 
   return (
