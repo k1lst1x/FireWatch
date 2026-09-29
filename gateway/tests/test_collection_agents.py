@@ -207,3 +207,16 @@ async def test_weather_agent_missing_api_key():
 def test_spread_risk_extremes():
     assert WeatherAgent._spread_risk(20.0, 0.0) == 1.0
     assert WeatherAgent._spread_risk(0.0, 100.0) == 0.0
+
+
+@pytest.mark.asyncio
+async def test_firms_nominal_confidence_beats_low_frp():
+    from app.services.ai.agents.satellite import SatelliteAgent
+
+    rows = {"data": [{"frp": "11.2", "confidence": "n", "latitude": "37.63", "longitude": "-119.62"}]}
+    with (
+        patch("app.services.ai.agents.satellite.fetch_firms_rows", new_callable=AsyncMock, return_value=rows),
+        patch("app.services.ai.agents.satellite.settings.nasa_firms_map_key", "k"),
+    ):
+        r = await SatelliteAgent().run(lat=37.63, lon=-119.62)
+    assert r.hotspot_detected and r.thermal_confidence == 0.65

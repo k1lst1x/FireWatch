@@ -39,6 +39,22 @@ def _frp_value(hotspot: dict[str, Any]) -> float | None:
         return None
 
 
+_VIIRS_CONF = {"l": 0.3, "low": 0.3, "n": 0.65, "nominal": 0.65, "h": 0.9, "high": 0.9}
+
+
+def _conf_value(hotspot: dict[str, Any]) -> float | None:
+    raw = hotspot.get("confidence")
+    if raw is None:
+        return None
+    key = str(raw).strip().lower()
+    if key in _VIIRS_CONF:
+        return _VIIRS_CONF[key]
+    try:
+        return max(0.0, min(1.0, float(key) / 100.0))
+    except ValueError:
+        return None
+
+
 class FirmsApiError(Exception):
     pass
 
@@ -146,14 +162,16 @@ class SatelliteAgent(BaseAgent):
         thermal_confidence = 0.0
 
         if hotspot_detected:
-            frp_values: list[float] = []
+            scores: list[float] = []
             for h in hotspots:
                 if isinstance(h, dict):
-                    v = _frp_value(h)
-                    if v is not None:
-                        frp_values.append(v)
-            if frp_values:
-                thermal_confidence = min(max(frp_values) / frp_norm, 1.0)
+                    frp = _frp_value(h)
+                    conf = _conf_value(h)
+                    parts = [x for x in (min(frp / frp_norm, 1.0) if frp is not None else None, conf) if x is not None]
+                    if parts:
+                        scores.append(max(parts))
+            if scores:
+                thermal_confidence = round(max(scores), 4)
 
         result = SatelliteResult(
             thermal_confidence=thermal_confidence,

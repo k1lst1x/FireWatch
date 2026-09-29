@@ -40,3 +40,27 @@ async def test_both_positive_overrides_high_threshold(monkeypatch):
     out = await FusionAgent().run(camera=camera, satellite=sat)
     assert out.status == ConfirmationStatus.CONFIRMED
     assert out.telemetry["both_positive_override"] is True
+
+
+@pytest.mark.asyncio
+async def test_nominal_satellite_hotspot_alone_goes_to_review(monkeypatch):
+    monkeypatch.setattr(settings, "fusion_threshold", 0.4)
+    monkeypatch.setattr(settings, "fusion_camera_weight", 0.6)
+    monkeypatch.setattr(settings, "fusion_thermal_only_threshold", 0.6)
+    camera = CameraResult(confidence=0.0, detected=False, raw={})
+    sat = SatelliteResult(thermal_confidence=0.65, hotspot_detected=True, raw={})
+    out = await FusionAgent().run(camera=camera, satellite=sat)
+    assert out.status == ConfirmationStatus.CONFIRMED
+    assert out.telemetry["thermal_only_override"] is True
+    assert "dispatcher" in out.reason
+
+
+@pytest.mark.asyncio
+async def test_low_confidence_hotspot_alone_dismissed(monkeypatch):
+    monkeypatch.setattr(settings, "fusion_threshold", 0.4)
+    monkeypatch.setattr(settings, "fusion_camera_weight", 0.6)
+    monkeypatch.setattr(settings, "fusion_thermal_only_threshold", 0.6)
+    camera = CameraResult(confidence=0.0, detected=False, raw={})
+    sat = SatelliteResult(thermal_confidence=0.3, hotspot_detected=True, raw={})
+    out = await FusionAgent().run(camera=camera, satellite=sat)
+    assert out.status == ConfirmationStatus.DISMISSED

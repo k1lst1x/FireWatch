@@ -16,6 +16,7 @@ dependencies = [
     "python-jose[cryptography]>=3.3",
     "sqlalchemy[asyncio]>=2.0",
     "aiosqlite>=0.20",
+    "dill>=0.3",
 ]
 
 [dependency-groups]
