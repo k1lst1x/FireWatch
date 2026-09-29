@@ -6,7 +6,7 @@ import { CRIT_COLOR } from '../lib/api'
 const LABELS: Record<string, string> = {
   llm: 'LLM agents',
   camera_detector: 'Fire detector',
-  alertca: 'AlertCA cameras',
+  cameras: 'Live cameras',
   satellite_firms: 'NASA FIRMS',
   weather: 'Weather',
   webhook: 'Dispatch webhook',

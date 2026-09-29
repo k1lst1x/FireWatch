@@ -111,7 +111,7 @@ export default function VisualReasoning() {
           <input className={`${field} w-20`} value={lat} onChange={e => setLat(e.target.value)} placeholder="lat" />
           <input className={`${field} w-20`} value={lon} onChange={e => setLon(e.target.value)} placeholder="lon" />
           <select className={field} value={image} onChange={e => setImage(e.target.value)}>
-            <option value="">No image (AlertCA lookup)</option>
+            <option value="">Nearest live camera (AlertWest)</option>
             {images.map(i => (
               <option key={i} value={i}>
                 {i.replace('demo_images/', '')}

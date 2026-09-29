@@ -20,7 +20,7 @@ Every key is optional; each agent falls back instead of failing:
 |---|---|
 | `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | Rule-based reasoning, severity and response plan (Claude is used if both are set) |
 | YOLO weights | Vision-LLM fire check (needs an LLM key) |
-| `ALERTCA_API_KEY` | Pass `image_url` (URL, `demo_images/…`, or upload) |
+| Cameras | ALERTWest public API (no key) picks the nearest live camera; or pass `image_url` |
 | `OPENWEATHERMAP_API_KEY` | Open-Meteo, no key needed |
 | `NASA_FIRMS_MAP_KEY` | Thermal score 0 (camera alone must clear the fusion threshold) |
 | `DASHBOARD_WEBHOOK_URL` | Approvals are recorded, no webhook sent |

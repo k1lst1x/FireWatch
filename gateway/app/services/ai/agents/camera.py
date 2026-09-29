@@ -28,6 +28,7 @@ from ultralytics import YOLO
 from app.config import settings
 from app.services.ai.schemas.pipeline import CameraResult
 
+from . import alertwest
 from .base import BaseAgent
 from .geo_hints import log_if_outside_california
 from .http_retry import httpx_get_bytes, httpx_get_json
@@ -133,6 +134,27 @@ class CameraAgent(BaseAgent):
             label="alertca",
         )
 
+    async def _from_alertwest(self, lat: float, lon: float) -> tuple[dict[str, Any], str | None]:
+        try:
+            cams = await alertwest.fetch_cameras()
+        except Exception as exc:
+            logger.warning("AlertWest camera lookup failed: %s", exc)
+            return {"source": "alertwest", "error": str(exc)}, None
+        near = alertwest.nearest(cams, lat, lon, settings.alertwest_max_km)
+        if not near:
+            return {
+                "source": "alertwest",
+                "error": f"no online AlertWest camera within {settings.alertwest_max_km:.0f} km",
+                "cameras_total": len(cams),
+            }, None
+        dist, cam = near[0]
+        return {
+            "source": "alertwest",
+            "camera": {"id": cam.cid, "name": cam.name, "lat": cam.lat, "lon": cam.lon, "distance_km": round(dist, 2)},
+            "nearby": [{"id": c.cid, "name": c.name, "distance_km": round(d, 2)} for d, c in near[:5]],
+            "attribution": "ALERTWest / ALERTCalifornia, UC San Diego (CC BY-NC-ND 4.0)",
+        }, cam.image_url()
+
     async def _run_yolo(self, url: str) -> tuple[float, bool]:
         """Download image from url, run YOLOv8, return (confidence, detected)."""
         content = await load_image_bytes(url)
@@ -186,6 +208,8 @@ class CameraAgent(BaseAgent):
 
         if url:
             raw = {"source": "event_image_url"}
+        elif settings.camera_source == "alertwest":
+            raw, url = await self._from_alertwest(lat, lon)
         else:
             if not (settings.alertca_api_key or "").strip():
                 logger.warning("ALERTCA_API_KEY missing and no image_url; camera stage skipped")

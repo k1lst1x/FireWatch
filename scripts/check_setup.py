@@ -104,10 +104,39 @@ async def check_owm(client: httpx.AsyncClient) -> None:
         report("Weather (OWM)", "FAIL", f"HTTP {r.status_code}: {r.text[:120]}")
 
 
+async def check_alertwest(client: httpx.AsyncClient) -> None:
+    from app.services.ai.agents import alertwest
+
+    r = await client.get(alertwest.CAMERAS_URL)
+    if r.status_code != 200:
+        return report("Cameras (AlertWest)", "FAIL", f"HTTP {r.status_code}: {r.text[:120]}")
+    payload = r.json()
+    root = payload.get("data", payload) if isinstance(payload, dict) else {}
+    for part in ("cams", "locs"):
+        block = root.get(part) if isinstance(root, dict) else None
+        if isinstance(block, dict):
+            sample = (block.get("data") or [{}])[0]
+            print(f"  {DIM}{part}.key = {str(block.get('key'))[:300]}{RESET}")
+            print(f"  {DIM}{part}.data[0] = {str(sample)[:300]}{RESET}")
+    cams = alertwest.parse_cameras(payload)
+    if not cams:
+        return report("Cameras (AlertWest)", "FAIL", "reachable but 0 cameras parsed — send Claude the key/data lines above")
+    online = [c for c in cams if not c.offline and c.image_url()]
+    near = alertwest.nearest(cams, 38.9, -120.0, 200)
+    detail = f"{len(cams)} cameras, {len(online)} online with images"
+    if near:
+        d, cam = near[0]
+        img = await client.get(cam.image_url())
+        detail += f"; nearest Tahoe: {cam.name} ({d:.0f} km) image HTTP {img.status_code}"
+        if img.status_code != 200:
+            return report("Cameras (AlertWest)", "FAIL", detail + f" → {cam.image_url()}")
+    report("Cameras (AlertWest)", "OK", detail)
+
+
 async def check_alertca(client: httpx.AsyncClient) -> None:
     key = env("ALERTCA_API_KEY")
     if not key:
-        return report("Cameras (AlertCA)", "SKIP", "no key → send image_url with each event (recommended for demo)")
+        return report("Cameras (AlertCA)", "SKIP", "not needed — AlertWest public cameras are used instead")
     r = await client.get(
         "https://www.alertcalifornia.org/api/cameras/nearby",
         params={"lat": 37.5, "lon": -122, "radius": 10},
@@ -166,7 +195,7 @@ async def main() -> None:
 
     print("BayHawk setup check\n")
     async with httpx.AsyncClient(timeout=20.0) as client:
-        for fn in (check_claude, check_openai, check_firms, check_owm, check_alertca):
+        for fn in (check_claude, check_openai, check_firms, check_owm, check_alertwest, check_alertca):
             try:
                 await fn(client)
             except httpx.HTTPError as exc:

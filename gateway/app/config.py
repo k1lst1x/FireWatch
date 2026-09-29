@@ -47,6 +47,9 @@ class Settings:
     # Camera — ALERTCalifornia (UC San Diego), California camera network:
     #   https://alertcalifornia.org/  |  Partner API token → ALERTCA_API_KEY
     alertca_api_key: str = os.getenv("ALERTCA_API_KEY", "")
+    camera_source: str = os.getenv("CAMERA_SOURCE", "alertwest").lower()
+    alertwest_max_km: float = _env_float("ALERTWEST_MAX_KM", 60.0)
+    alertwest_cache_ttl_sec: int = _env_int("ALERTWEST_CACHE_TTL_SEC", 300)
 
     # Satellite — NASA LANCE FIRMS (global; includes CA). Free MAP_KEY:
     #   https://firms.modaps.eosdis.nasa.gov/api/area/

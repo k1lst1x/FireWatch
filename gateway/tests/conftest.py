@@ -27,3 +27,4 @@ def _no_live_fallbacks(monkeypatch) -> None:
     monkeypatch.setattr(settings, "weather_fallback", False)
     monkeypatch.setattr(settings, "openai_api_key", "")
     monkeypatch.setattr(settings, "anthropic_api_key", "")
+    monkeypatch.setattr(settings, "camera_source", "alertca")

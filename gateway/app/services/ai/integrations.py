@@ -37,9 +37,9 @@ def integration_status() -> dict:
                 "detector": "yolo" if weights else ("vision_llm" if llm else None),
                 "weights": settings.yolo_model_path,
             },
-            "alertca": {
-                "live": _has(settings.alertca_api_key),
-                "fallback": None if _has(settings.alertca_api_key) else "pass image_url with each event",
+            "cameras": {
+                "live": settings.camera_source == "alertwest" or _has(settings.alertca_api_key),
+                "source": "alertwest (public, no key)" if settings.camera_source == "alertwest" else "alertca",
             },
             "satellite_firms": {
                 "live": _has(settings.nasa_firms_map_key),
