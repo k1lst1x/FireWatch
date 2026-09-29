@@ -110,6 +110,12 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ decision, note }),
     }),
+  telemetryWeather: (lat = 37.7749, lon = -122.4194) =>
+    call<{ latitude: number; longitude: number; current: any; spread_risk: number; source: string; timestamp: string }>(
+      `/ai/telemetry/live-weather?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`,
+    ),
+  telemetryNasa: () =>
+    call<{ count: number; source: string; hotspots: any[]; timestamp: string }>('/ai/telemetry/nasa-hotspots'),
 }
 
 export function imageSrc(ref?: string | null): string | null {

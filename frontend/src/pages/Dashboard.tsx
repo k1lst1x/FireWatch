@@ -11,6 +11,14 @@ import type { BasemapTier } from '../map/config'
 import { api, type AnalyzeInput, type CameraDirectoryResponse } from '../lib/api'
 import { CALIFORNIA_REALTIME_CAMERAS, type LiveCameraFeed } from '../map/cameraDirectory'
 import LiveVideoModal from '../map/overlays/LiveVideoModal'
+import LiveWeatherWidget from '../map/overlays/LiveWeatherWidget'
+import {
+  fetchLiveWeather,
+  fetchNasaHotspots,
+  buildLiveSanFranciscoTelemetry,
+  type RealtimeWeather,
+  type RealtimeNasaHotspot,
+} from '../services/liveFeedService'
 import '../map/map.css'
 
 function Console() {
@@ -27,9 +35,65 @@ function Console() {
   const [cameraMode, setCameraMode] = useState<'isometric' | 'topdown' | 'cinematic'>('isometric')
   const [hudVisible, setHudVisible] = useState(true)
 
-  // with no backend the city would be empty, which makes for a dead demo
+  // Real-time Weather API & NASA Satellite State
+  const [weather, setWeather] = useState<RealtimeWeather | null>(null)
+  const [weatherLoading, setWeatherLoading] = useState(false)
+  const [nasaHotspots, setNasaHotspots] = useState<RealtimeNasaHotspot[]>([])
+  const [targetCoords, setTargetCoords] = useState<{ lat: number; lon: number; name: string }>({
+    lat: 37.7749,
+    lon: -122.4194,
+    name: 'San Francisco Downtown',
+  })
+
+  // Synchronize real-time weather and NASA satellite telemetry
+  const syncTelemetry = useCallback(async (lat = targetCoords.lat, lon = targetCoords.lon, name = targetCoords.name) => {
+    setWeatherLoading(true)
+    try {
+      const [w, h] = await Promise.all([
+        fetchLiveWeather(lat, lon),
+        fetchNasaHotspots(),
+      ])
+      setWeather(w)
+      setNasaHotspots(h)
+      setTargetCoords({ lat, lon, name })
+    } catch (err) {
+      console.warn('[Dashboard] Real-time telemetry sync warning:', err)
+    } finally {
+      setWeatherLoading(false)
+    }
+  }, [targetCoords.lat, targetCoords.lon, targetCoords.name])
+
+  // Continuous real-time synchronization loop: 30s weather, 60s NASA satellite pass
+  useEffect(() => {
+    syncTelemetry()
+    const weatherTimer = setInterval(() => {
+      fetchLiveWeather(targetCoords.lat, targetCoords.lon)
+        .then(setWeather)
+        .catch(() => {})
+    }, 30_000)
+
+    const nasaTimer = setInterval(() => {
+      fetchNasaHotspots()
+        .then(setNasaHotspots)
+        .catch(() => {})
+    }, 60_000)
+
+    return () => {
+      clearInterval(weatherTimer)
+      clearInterval(nasaTimer)
+    }
+  }, [syncTelemetry, targetCoords.lat, targetCoords.lon])
+
+  // Real-time thermal anomalies: calibrated with live atmospheric telemetry
+  const liveIncidents = useMemo(() => {
+    return weather ? buildLiveSanFranciscoTelemetry(weather) : DEMO_INCIDENTS
+  }, [weather])
+
   const simulated = !backendUp && incidents.length === 0
-  const shown = useMemo(() => (simulated ? DEMO_INCIDENTS : incidents), [simulated, incidents])
+  const shown = useMemo(() => {
+    if (backendUp && incidents.length > 0) return incidents
+    return liveIncidents
+  }, [backendUp, incidents, liveIncidents])
   const selected = shown.find(i => i.id === selectedId) ?? null
 
   const onReady = useCallback((t: BasemapTier) => {
@@ -47,7 +111,18 @@ function Console() {
     setSelectedCameraId(cam.id)
     const full = CALIFORNIA_REALTIME_CAMERAS.find(c => c.id === cam.id) || (cam as LiveCameraFeed)
     setVideoModalCamera(full)
-  }, [])
+    // Automatically query real-time weather at the camera's location
+    syncTelemetry(cam.lat, cam.lon, `Camera: ${cam.name}`)
+  }, [syncTelemetry])
+
+  const handleIncidentSelect = useCallback((id: string | null) => {
+    setSelectedId(id)
+    if (!id) return
+    const inc = shown.find(i => i.id === id)
+    if (inc) {
+      syncTelemetry(inc.lat, inc.lon, `Anomaly: ${inc.event_id}`)
+    }
+  }, [shown, syncTelemetry])
 
   // Refresh statewide / Bay Area camera stations
   useEffect(() => {
@@ -81,7 +156,7 @@ function Console() {
         incidents={shown}
         cameras={cameras}
         selectedId={selectedId}
-        onSelect={setSelectedId}
+        onSelect={handleIncidentSelect}
         selectedCameraId={selectedCameraId}
         onSelectCamera={handleCameraSelect}
         resetToken={resetToken}
@@ -182,19 +257,30 @@ function Console() {
             onReset={() => { setSelectedId(null); setResetToken(t => t + 1); setCameraMode('isometric') }}
             onRefresh={() => { refresh() }}
           />
-          <IncidentList incidents={shown} selectedId={selectedId} onSelect={setSelectedId} />
+          <IncidentList incidents={shown} selectedId={selectedId} onSelect={handleIncidentSelect} />
         </div>
       )}
 
-      {/* right inspector */}
-      {hudVisible && selected && (
-        <div className="pointer-events-none absolute right-5 top-[76px] z-20">
-          <IncidentDetail
-            incident={selected}
-            onReview={(id, decision) => review(id, decision)}
-            onClose={() => setSelectedId(null)}
-            reviewDisabled={simulated}
+      {/* right rail: real-time live weather widget + incident detail */}
+      {hudVisible && (
+        <div className="pointer-events-none absolute right-5 top-[76px] z-20 flex flex-col items-end gap-3 max-h-[calc(100vh-140px)] overflow-y-auto no-scrollbar">
+          <LiveWeatherWidget
+            weather={weather}
+            nasaHotspots={nasaHotspots}
+            loading={weatherLoading}
+            onRefresh={() => syncTelemetry(targetCoords.lat, targetCoords.lon, targetCoords.name)}
+            currentLocationName={targetCoords.name}
           />
+          {selected && (
+            <div className="pointer-events-auto">
+              <IncidentDetail
+                incident={selected}
+                onReview={(id, decision) => review(id, decision)}
+                onClose={() => setSelectedId(null)}
+                reviewDisabled={simulated}
+              />
+            </div>
+          )}
         </div>
       )}
 

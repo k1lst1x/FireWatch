@@ -1,5 +1,8 @@
+import csv
+import io
 import uuid
 from datetime import datetime, timezone
+import httpx
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
@@ -55,6 +58,153 @@ def _serialize(i: Incident) -> dict:
 @router.get("/status")
 async def pipeline_status(_user=Depends(require_user)):
     return integration_status()
+
+
+@router.get("/telemetry/live-weather")
+async def get_live_weather(
+    lat: float = Query(default=37.7749, ge=-90, le=90),
+    lon: float = Query(default=-122.4194, ge=-180, le=180),
+):
+    """Real-time live weather conditions with fire spread risk index."""
+    async with httpx.AsyncClient(timeout=8.0) as client:
+        # 1. Try OpenWeatherMap if configured
+        if settings.openweathermap_api_key:
+            try:
+                resp = await client.get(
+                    "https://api.openweathermap.org/data/2.5/weather",
+                    params={"lat": lat, "lon": lon, "appid": settings.openweathermap_api_key, "units": "metric"},
+                )
+                if resp.status_code == 200:
+                    owm = resp.json()
+                    wind = owm.get("wind", {})
+                    main = owm.get("main", {})
+                    wind_speed = float(wind.get("speed", 5.0))
+                    humidity = float(main.get("humidity", 45.0))
+                    temp = float(main.get("temp", 20.0))
+                    wind_factor = min(wind_speed / 20.0, 1.0)
+                    humidity_factor = max(1.0 - humidity / 100.0, 0.0)
+                    spread_risk = round(wind_factor * 0.6 + humidity_factor * 0.4, 3)
+                    return {
+                        "latitude": lat,
+                        "longitude": lon,
+                        "current": {
+                            "temperature_2m": temp,
+                            "relative_humidity_2m": humidity,
+                            "wind_speed_10m": wind_speed,
+                            "wind_direction_10m": float(wind.get("deg", 270)),
+                            "surface_pressure": float(main.get("pressure", 1013.0)),
+                            "weather_code": 0 if (owm.get("weather") or [{}])[0].get("main") == "Clear" else 1,
+                        },
+                        "spread_risk": spread_risk,
+                        "source": "openweathermap",
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }
+            except Exception:
+                pass
+
+        # 2. Keyless high-resolution Open-Meteo fallback
+        try:
+            resp = await client.get(
+                "https://api.open-meteo.com/v1/forecast",
+                params={
+                    "latitude": round(lat, 4),
+                    "longitude": round(lon, 4),
+                    "current": "temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,wind_speed_10m,wind_direction_10m,wind_gusts_10m,weather_code,surface_pressure",
+                    "wind_speed_unit": "ms",
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            cur = data.get("current", {})
+            wind_speed = float(cur.get("wind_speed_10m", 5.0))
+            humidity = float(cur.get("relative_humidity_2m", 45.0))
+            wind_factor = min(wind_speed / 20.0, 1.0)
+            humidity_factor = max(1.0 - humidity / 100.0, 0.0)
+            spread_risk = round(wind_factor * 0.6 + humidity_factor * 0.4, 3)
+            return {
+                "latitude": lat,
+                "longitude": lon,
+                "current": cur,
+                "spread_risk": spread_risk,
+                "source": "open-meteo",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        except Exception as exc:
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Weather service error: {exc}")
+
+
+@router.get("/telemetry/nasa-hotspots")
+async def get_nasa_hotspots():
+    """Real-time active wildfires and thermal anomalies from NASA FIRMS Area API and NASA EONET v3."""
+    hotspots = []
+    async with httpx.AsyncClient(timeout=8.0) as client:
+        # 1. Query NASA FIRMS if MAP_KEY is present
+        if settings.nasa_firms_map_key:
+            try:
+                # Query California bounding box
+                bbox = "-124.5,32.5,-114.1,42.0"
+                firms_url = (
+                    f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/"
+                    f"{settings.nasa_firms_map_key}/{settings.firms_source}/{bbox}/{settings.firms_day_range}"
+                )
+                resp = await client.get(firms_url)
+                if resp.status_code == 200 and resp.text:
+                    lines = resp.text.strip().splitlines()
+                    if len(lines) > 1 and "latitude" in lines[0].lower():
+                        reader = csv.DictReader(io.StringIO(resp.text))
+                        for idx, row in enumerate(reader):
+                            try:
+                                lat = float(row["latitude"])
+                                lon = float(row["longitude"])
+                                frp = float(row.get("frp", 15.0))
+                                conf_raw = row.get("confidence", "nominal")
+                                hotspots.append({
+                                    "id": f"firms-ca-{idx + 1}",
+                                    "title": f"NASA VIIRS Hotspot ({frp:.1f} MW)",
+                                    "lat": lat,
+                                    "lon": lon,
+                                    "frp": frp,
+                                    "confidence": 90 if conf_raw == "h" or conf_raw == "high" else 75,
+                                    "date": f"{row.get('acq_date', '')}T{row.get('acq_time', '')}Z",
+                                    "source": "NASA FIRMS VIIRS (375m)",
+                                })
+                            except Exception:
+                                continue
+            except Exception:
+                pass
+
+        # 2. Query NASA EONET v3 active wildfires
+        try:
+            resp = await client.get(
+                "https://eonet.gsfc.nasa.gov/api/v3/events",
+                params={"category": "wildfires", "status": "open", "limit": 25},
+            )
+            if resp.status_code == 200:
+                events = resp.json().get("events", [])
+                for evt in events:
+                    geoms = evt.get("geometry", [])
+                    if geoms:
+                        last = geoms[-1]
+                        coords = last.get("coordinates", [])
+                        if len(coords) >= 2:
+                            hotspots.append({
+                                "id": f"eonet-{evt.get('id')}",
+                                "title": evt.get("title"),
+                                "lat": coords[1],
+                                "lon": coords[0],
+                                "date": last.get("date"),
+                                "magnitude": last.get("magnitudeValue"),
+                                "source": "NASA EONET v3",
+                            })
+        except Exception:
+            pass
+
+    return {
+        "count": len(hotspots),
+        "source": "NASA FIRMS (VIIRS) + NASA EONET v3",
+        "hotspots": hotspots,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 @router.get("/cameras/nearby")
