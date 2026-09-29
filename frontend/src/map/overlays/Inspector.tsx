@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
-  Brain, Camera, Check, ChevronDown, ClipboardList, CloudSun, Eye, GitMerge, MapPin, Play, Satellite, Siren, UserCheck, X,
+  Brain, Camera, Check, ChevronDown, ClipboardList, CloudSun, Eye, GitMerge, MapPin, Maximize2, Play, Satellite, Siren, UserCheck, X,
 } from 'lucide-react'
 import { CRIT_COLOR, imageSrc, type AnalyzeInput, type Incident, type NearbyCamera, type PipelineResult } from '../../lib/api'
 import { getNearbyLiveCameras, type LiveCameraFeed, type CameraCategory } from '../cameraDirectory'
@@ -31,10 +31,12 @@ export function AnalysisBar({
   running,
   onRun,
   onSelectCamera,
+  onOpenVideoModal,
 }: {
   running: boolean
   onRun: (input: AnalyzeInput) => void
   onSelectCamera?: (camera: LiveCameraFeed | NearbyCamera) => void
+  onOpenVideoModal?: (camera: LiveCameraFeed) => void
 }) {
   const [lat, setLat] = useState('37.7749')
   const [lon, setLon] = useState('-122.4194')
@@ -194,34 +196,28 @@ export function AnalysisBar({
 
             {/* REAL-TIME LIVE CAMERA VIEWPORT INSIDE THIS BOX */}
             {activeFeed && (
-              <div className="relative mt-2.5 overflow-hidden rounded-lg border border-white/15 bg-black shadow-lg">
+              <div
+                className="relative mt-2.5 overflow-hidden rounded-lg border border-white/15 bg-black shadow-lg cursor-pointer group"
+                onClick={() => onOpenVideoModal && onOpenVideoModal(activeFeed)}
+                title="Click to open video popup window"
+              >
                 <div className="relative aspect-video w-full bg-zinc-950 overflow-hidden">
-                  {activeFeed.video_url ? (
-                    <video
-                      key={activeFeed.video_url}
-                      src={activeFeed.video_url}
-                      autoPlay
-                      loop
-                      muted
-                      playsInline
-                      className="h-full w-full object-cover"
-                    />
-                  ) : activeFeed.image_url ? (
-                    <img
-                      key={`${activeFeed.image_url}-${cameraPoll}`}
-                      src={activeFeed.image_url}
-                      alt={activeFeed.name}
-                      onError={e => {
-                        // Crash-proof fallback: if external Caltrans feed has a transient CORS or timeout issue, load poster
-                        (e.target as HTMLImageElement).src = '/video/ggb-poster.jpg'
-                      }}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-zinc-500">
-                      <Camera size={32} />
-                    </div>
-                  )}
+                  <video
+                    key={activeFeed.video_url}
+                    src={activeFeed.video_url}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="h-full w-full object-cover"
+                  />
+
+                  {/* Hover Prompt */}
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                    <span className="flex items-center gap-1.5 rounded-full bg-[#ff5a00] px-3 py-1.5 text-[11px] font-bold text-white shadow-xl">
+                      <Maximize2 size={13} /> Open Video Window
+                    </span>
+                  </div>
 
                   {/* Optical Reticle & Surveillance HUD Overlay */}
                   <div className="pointer-events-none absolute inset-0">
@@ -267,7 +263,7 @@ export function AnalysisBar({
               </div>
             )}
 
-            {/* Quick Auto-select / Reset button */}
+            {/* Quick Auto-select / Reset button & Popup Video button */}
             <div className="mt-2.5 flex items-center gap-2">
               <button
                 type="button"
@@ -283,6 +279,18 @@ export function AnalysisBar({
                 <MapPin size={13} />
                 <span>Auto-select Nearest Feed</span>
               </button>
+
+              {activeFeed && onOpenVideoModal && (
+                <button
+                  type="button"
+                  className="flex items-center gap-1.5 rounded-lg border border-[#ff5a00]/40 bg-[#ff5a00]/20 px-2.5 py-1.5 text-[11px] font-semibold text-[#ff8c42] hover:bg-[#ff5a00] hover:text-white transition-all shadow-sm"
+                  onClick={() => onOpenVideoModal(activeFeed)}
+                  title="Open live video in popup window"
+                >
+                  <Maximize2 size={13} />
+                  <span>Popup Video</span>
+                </button>
+              )}
 
               {activeFeed && onSelectCamera && (
                 <button
@@ -312,7 +320,10 @@ export function AnalysisBar({
                         ? 'border border-[#ff5a00]/60 bg-[#ff5a00]/15 text-white'
                         : 'border border-transparent bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white'
                     }`}
-                    onClick={() => handleSelect(camera)}
+                    onClick={() => {
+                      handleSelect(camera)
+                      if (onOpenVideoModal) onOpenVideoModal(camera)
+                    }}
                   >
                     <span
                       className={`grid h-8 w-8 shrink-0 place-items-center rounded-md ${

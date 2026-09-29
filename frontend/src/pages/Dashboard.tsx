@@ -9,7 +9,8 @@ import { AnalysisBar, IncidentDetail } from '../map/overlays/Inspector'
 import FlameMark from '../map/overlays/FlameMark'
 import type { BasemapTier } from '../map/config'
 import { api, type AnalyzeInput, type CameraDirectoryResponse } from '../lib/api'
-import { CALIFORNIA_FREE_CAMERAS } from '../map/cameraDirectory'
+import { CALIFORNIA_REALTIME_CAMERAS, type LiveCameraFeed } from '../map/cameraDirectory'
+import LiveVideoModal from '../map/overlays/LiveVideoModal'
 import '../map/map.css'
 
 function Console() {
@@ -17,10 +18,11 @@ function Console() {
   const { status, incidents, backendUp, running, error, analyze, review, refresh } = useBayhawk()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null)
+  const [videoModalCamera, setVideoModalCamera] = useState<LiveCameraFeed | null>(null)
   const [resetToken, setResetToken] = useState(0)
   const [tier, setTier] = useState<BasemapTier | null>(null)
   const [booted, setBooted] = useState(false)
-  const [cameras, setCameras] = useState<CameraDirectoryResponse['cameras']>(CALIFORNIA_FREE_CAMERAS)
+  const [cameras, setCameras] = useState<CameraDirectoryResponse['cameras']>(CALIFORNIA_REALTIME_CAMERAS)
 
   const [cameraMode, setCameraMode] = useState<'isometric' | 'topdown' | 'cinematic'>('isometric')
   const [hudVisible, setHudVisible] = useState(true)
@@ -40,10 +42,17 @@ function Console() {
     [analyze],
   )
 
+  const handleCameraSelect = useCallback((cam: any) => {
+    if (!cam) return
+    setSelectedCameraId(cam.id)
+    const full = CALIFORNIA_REALTIME_CAMERAS.find(c => c.id === cam.id) || (cam as LiveCameraFeed)
+    setVideoModalCamera(full)
+  }, [])
+
   // Refresh statewide / Bay Area camera stations
   useEffect(() => {
     if (!backendUp) {
-      setCameras(CALIFORNIA_FREE_CAMERAS)
+      setCameras(CALIFORNIA_REALTIME_CAMERAS)
       return
     }
     let cancelled = false
@@ -51,12 +60,11 @@ function Console() {
       api.cameraDirectory()
         .then(({ cameras: directory }) => {
           if (!cancelled && directory && directory.length > 0) {
-            // merge statewide directory with California free cameras
             setCameras(directory)
           }
         })
         .catch(() => {
-          if (!cancelled) setCameras(CALIFORNIA_FREE_CAMERAS)
+          if (!cancelled) setCameras(CALIFORNIA_REALTIME_CAMERAS)
         })
     }
     refreshCameras()
@@ -75,7 +83,7 @@ function Console() {
         selectedId={selectedId}
         onSelect={setSelectedId}
         selectedCameraId={selectedCameraId}
-        onSelectCamera={cam => setSelectedCameraId(cam.id)}
+        onSelectCamera={handleCameraSelect}
         resetToken={resetToken}
         onReady={onReady}
         cameraMode={cameraMode}
@@ -218,10 +226,25 @@ function Console() {
         <AnalysisBar
           running={running}
           onRun={onRun}
-          onSelectCamera={cam => setSelectedCameraId(cam.id)}
+          onSelectCamera={handleCameraSelect}
+          onOpenVideoModal={cam => setVideoModalCamera(cam)}
         />
         <StatusStrip status={status} backendUp={backendUp} />
       </div>
+
+      {/* Real-time Live Video Streaming Popup Window */}
+      {videoModalCamera && (
+        <LiveVideoModal
+          camera={videoModalCamera}
+          onClose={() => setVideoModalCamera(null)}
+          onFlyTo={cam => setSelectedCameraId(cam.id)}
+          allCameras={CALIFORNIA_REALTIME_CAMERAS}
+          onSelectCamera={cam => {
+            setVideoModalCamera(cam)
+            setSelectedCameraId(cam.id)
+          }}
+        />
+      )}
 
       {/* boot veil, so the city fades in rather than popping */}
       <div className={`fwmap-boot ${booted ? 'is-done' : ''}`}>
