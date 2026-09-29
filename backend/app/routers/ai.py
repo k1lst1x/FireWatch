@@ -340,7 +340,9 @@ async def review_incident(
     notification_sent = False
     if decision == "approve":
         suggestion = (incident.result or {}).get("suggestion") or {}
-        notification_sent = await _orchestrator.output.dispatch(
+        from app.services.ai.agents.output import OutputAgent
+
+        notification_sent = await OutputAgent().dispatch(
             {
                 "incident_id": incident.id,
                 "criticality": incident.criticality,
@@ -349,7 +351,7 @@ async def review_incident(
                 "alert_message": suggestion.get("alert_message"),
                 "action_plan": suggestion.get("action_plan"),
                 "recommended_resources": suggestion.get("recommended_resources"),
-                "approved_by": user.email,
+                "approved_by": user.email if user else "anonymous",
             }
         )
     incident.status = IncidentStatus.APPROVED if decision == "approve" else IncidentStatus.REJECTED

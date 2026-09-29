@@ -26,7 +26,9 @@ class Settings:
     secret_key: str = os.getenv("SECRET_KEY", "")
     algorithm: str = os.getenv("ALGORITHM", "HS256")
     access_token_expire_minutes: int = _env_int("ACCESS_TOKEN_EXPIRE_MINUTES", 60)
-    auth_required: bool = os.getenv("AUTH_REQUIRED", "true").lower() == "true"
+    # FireWatch is a direct-use dispatch console by default.  Set this to true
+    # only when deploying behind an authenticated operator environment.
+    auth_required: bool = os.getenv("AUTH_REQUIRED", "false").lower() == "true"
     admin_emails: set[str] = {email.strip().lower() for email in os.getenv("ADMIN_EMAILS", "").split(",") if email.strip()}
     max_image_bytes: int = _env_int("MAX_IMAGE_BYTES", 8 * 1024 * 1024)
 

@@ -75,7 +75,6 @@ export default function Settings() {
     { label: 'Google 3D Tiles', environment: 'VITE_GOOGLE_3D_TILES_KEY', configured: Boolean(import.meta.env.VITE_GOOGLE_3D_TILES_KEY), used_for: 'Photorealistic 3D map tiles in the browser' },
     { label: 'Cesium Ion', environment: 'VITE_CESIUM_ION_TOKEN', configured: Boolean(import.meta.env.VITE_CESIUM_ION_TOKEN), used_for: 'Terrain and Cesium OSM Buildings in the browser' },
   ], [])
-  const needsSignIn = error?.startsWith('401:') ?? false
 
   return (
     <main className="min-h-screen bg-[#05060a] px-5 py-8 text-zinc-100 sm:px-8">
@@ -93,12 +92,8 @@ export default function Settings() {
         </div>
 
         {error ? (
-          <div className={`mt-6 rounded-xl border p-4 text-sm ${needsSignIn ? 'border-amber-400/25 bg-amber-400/10 text-amber-100' : 'border-red-400/25 bg-red-400/10 text-red-200'}`}>
-            {needsSignIn ? (
-              <span>Settings are protected. <Link to="/login" className="font-semibold underline underline-offset-2">Sign in</Link> to view key and integration status.</span>
-            ) : (
-              <span>Could not reach the local API: {error}. Start the API and try again.</span>
-            )}
+          <div className="mt-6 rounded-xl border border-red-400/25 bg-red-400/10 p-4 text-sm text-red-200">
+            Could not reach the local API: {error}. Start the API and try again.
           </div>
         ) : (
           <>

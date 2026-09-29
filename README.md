@@ -14,7 +14,7 @@ uv run python scripts/check_setup.py --find-fires
 uv run uvicorn app.main:app --app-dir backend --reload
 ```
 
-Frontend (second terminal): `cd frontend && npm install && npm run dev`, then open http://localhost:5173 → Sign in → pick a location + image → **Run Analysis** → **Dispatch** or **False alarm**.
+Frontend (second terminal): `cd frontend && npm install && npm run dev`, then open http://localhost:5173 and launch the dispatch console directly. Pick a location + image → **Run Analysis** → **Dispatch** or **False alarm**. Set `AUTH_REQUIRED=true` in `.env` only for deployments that need operator sign-in.
 
 The API is then available at `http://localhost:8000`, with interactive docs at
 `http://localhost:8000/docs`.
