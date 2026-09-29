@@ -60,6 +60,37 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
+/* Custom dark layers control */
+.fwmap .leaflet-control-layers {
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7) !important;
+  background: rgba(12, 14, 20, 0.88) !important;
+  backdrop-filter: blur(14px) !important;
+  color: #fff !important;
+  margin-bottom: 70px !important;
+  margin-right: 12px !important;
+}
+
+.fwmap .leaflet-control-layers-toggle {
+  background-color: transparent !important;
+  filter: invert(1);
+}
+
+.fwmap .leaflet-control-layers-expanded {
+  padding: 10px 14px !important;
+  font-size: 12px !important;
+  color: #eee !important;
+}
+
+.fwmap .leaflet-control-layers label {
+  cursor: pointer;
+  margin: 3px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 /* Leaflet dark popups */
 .fwmap .leaflet-popup-content-wrapper {
   background: rgba(12, 14, 20, 0.92) !important;
@@ -299,7 +330,7 @@
 
 .fwmap-boot {
   position: absolute; inset: 0; z-index: 50; display: grid; place-items: center;
-  background: var(--night); transition: opacity 0.7s ease;
+  background: var(--night); transition: opacity 0.3s ease;
 }
 .fwmap-boot.is-done { opacity: 0; pointer-events: none; }
 

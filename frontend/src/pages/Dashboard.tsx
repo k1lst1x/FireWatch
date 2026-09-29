@@ -448,7 +448,7 @@ function Console() {
               className="h-full bg-gradient-to-r from-[#ffb347] via-[#ff6b1f] to-[#ff3b2f]"
               style={{
                 width: booted ? '100%' : '65%',
-                transition: 'width 2.4s cubic-bezier(0.2, 0.8, 0.2, 1)',
+                transition: 'width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)',
               }}
             />
           </div>

@@ -63,7 +63,7 @@ export default function CityMap({
     const host = hostRef.current
     if (!host) return
 
-    // Leaflet map instance
+    // 1. Create standard 2D Leaflet map
     const map = L.map(host, {
       center: [CONFIG.initialView.lat, CONFIG.initialView.lon],
       zoom: CONFIG.initialView.zoom,
@@ -75,28 +75,52 @@ export default function CityMap({
     })
     mapRef.current = map
 
-    // Zoom control on bottom-right to keep left and right telemetry rails clear
-    L.control.zoom({ position: 'bottomright' }).addTo(map)
-
-    // Dark matter tactical basemap tiles
-    const tileLayer = L.tileLayer(CONFIG.cartoDarkUrl, {
+    // 2. Base Tile Layers
+    const darkLayer = L.tileLayer(CONFIG.cartoDarkUrl, {
       subdomains: 'abcd',
       maxZoom: 19,
       attribution: '&copy; CartoDB &copy; OpenStreetMap',
     })
-    tileLayer.addTo(map)
 
-    // Layer groups for clean, high-performance DOM manipulation
+    const osmLayer = L.tileLayer(CONFIG.osmUrl, {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors',
+    })
+
+    const satelliteLayer = L.tileLayer(CONFIG.satelliteUrl, {
+      maxZoom: 19,
+      attribution: '&copy; Esri World Imagery',
+    })
+
+    // Add dark layer by default
+    darkLayer.addTo(map)
+
+    // Base layers selector
+    const baseMaps = {
+      'Tactical Dark': darkLayer,
+      'Street Map': osmLayer,
+      'Satellite': satelliteLayer,
+    }
+
+    // Controls: Zoom on bottom-right, Layers toggle next to it
+    L.control.zoom({ position: 'bottomright' }).addTo(map)
+    L.control.layers(baseMaps, undefined, { position: 'bottomright', collapsed: true }).addTo(map)
+
+    // 3. Telemetry Overlay Groups
     incidentsLayerRef.current = L.layerGroup().addTo(map)
     camerasLayerRef.current = L.layerGroup().addTo(map)
 
-    // Signal ready when tiles start loading or on next tick
-    const timer = setTimeout(() => {
+    // Ensure map tiles render full container width/height immediately
+    requestAnimationFrame(() => {
+      map.invalidateSize()
       setReady(true)
       readyRef.current('tactical-dark')
-    }, 200)
+    })
 
-    // Click map background deselects
+    const onResize = () => map.invalidateSize()
+    window.addEventListener('resize', onResize)
+
+    // Click background deselects
     map.on('click', e => {
       const target = (e.originalEvent.target as HTMLElement)
       if (!target.closest('.fw-incident-marker') && !target.closest('.fw-camera-marker')) {
@@ -105,7 +129,7 @@ export default function CityMap({
     })
 
     return () => {
-      clearTimeout(timer)
+      window.removeEventListener('resize', onResize)
       incidentsLayerRef.current?.clearLayers()
       camerasLayerRef.current?.clearLayers()
       map.remove()
@@ -208,7 +232,7 @@ export default function CityMap({
     })
   }, [cameras, selectedCameraId, ready])
 
-  // --- Fly-to on Incident Selection
+  // --- Pan / Fly to on Incident Selection
   useEffect(() => {
     const map = mapRef.current
     if (!map || !ready || !selectedId) return
@@ -216,12 +240,12 @@ export default function CityMap({
     if (!incident || !Number.isFinite(incident.lat) || !Number.isFinite(incident.lon)) return
 
     map.flyTo([incident.lat, incident.lon], Math.max(map.getZoom(), 14), {
-      duration: 0.8,
-      easeLinearity: 0.25,
+      duration: 0.6,
+      easeLinearity: 0.3,
     })
   }, [selectedId, incidents, ready])
 
-  // --- Fly-to on Camera Selection
+  // --- Pan / Fly to on Camera Selection
   useEffect(() => {
     const map = mapRef.current
     if (!map || !ready || !selectedCameraId) return
@@ -229,25 +253,25 @@ export default function CityMap({
     if (!cam || !Number.isFinite(cam.lat) || !Number.isFinite(cam.lon)) return
 
     map.flyTo([cam.lat, cam.lon], Math.max(map.getZoom(), 14), {
-      duration: 0.8,
-      easeLinearity: 0.25,
+      duration: 0.6,
+      easeLinearity: 0.3,
     })
   }, [selectedCameraId, cameras, ready])
 
-  // --- Preset Camera Modes
+  // --- Regional View Presets
   useEffect(() => {
     const map = mapRef.current
     if (!map || !ready) return
 
     if (cameraMode === 'isometric') {
       // Downtown SF
-      map.flyTo([CONFIG.presets.downtown.lat, CONFIG.presets.downtown.lon], CONFIG.presets.downtown.zoom, { duration: 0.8 })
+      map.flyTo([CONFIG.presets.downtown.lat, CONFIG.presets.downtown.lon], CONFIG.presets.downtown.zoom, { duration: 0.6 })
     } else if (cameraMode === 'topdown') {
       // Bay Area Regional
-      map.flyTo([CONFIG.presets.bayArea.lat, CONFIG.presets.bayArea.lon], CONFIG.presets.bayArea.zoom, { duration: 0.8 })
+      map.flyTo([CONFIG.presets.bayArea.lat, CONFIG.presets.bayArea.lon], CONFIG.presets.bayArea.zoom, { duration: 0.6 })
     } else if (cameraMode === 'cinematic') {
       // Statewide California
-      map.flyTo([CONFIG.presets.statewide.lat, CONFIG.presets.statewide.lon], CONFIG.presets.statewide.zoom, { duration: 0.8 })
+      map.flyTo([CONFIG.presets.statewide.lat, CONFIG.presets.statewide.lon], CONFIG.presets.statewide.zoom, { duration: 0.6 })
     }
   }, [cameraMode, resetToken, ready])
 

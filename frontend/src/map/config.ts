@@ -1,11 +1,14 @@
 // Configuration for the tactical 2D city and regional map.
 
 export const CONFIG = {
-  /** Keyless satellite imagery in rich dusk natural colors */
-  imageryUrl: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-
   /** CartoDB Dark Matter basemap tiles (fast, beautiful, dark tactical theme) */
   cartoDarkUrl: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+
+  /** Standard OpenStreetMap tiles */
+  osmUrl: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+
+  /** Satellite imagery */
+  satelliteUrl: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
 
   /** Opening shot: San Francisco downtown corridor */
   initialView: {
@@ -33,7 +36,8 @@ export const CONFIG = {
 export type BasemapTier = 'tactical-dark' | 'satellite' | 'standard' | 'cloud' | 'photorealistic' | 'ion'
 
 export const TIER_LABEL: Record<string, string> = {
-  'tactical-dark': 'Tactical Dark Matter (2D)',
+  'tactical-dark': 'Tactical Dark (2D)',
+  standard: 'OpenStreetMap (2D)',
   satellite: 'ArcGIS Satellite (2D)',
   cloud: 'Geospatial Telemetry (2D)',
   photorealistic: 'Tactical 2D Engine',
