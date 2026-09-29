@@ -36,11 +36,11 @@ async function initGoogle3DTiles() {
                     credit: new Cesium.Credit('Imagery © Esri', false),
                 })
             );
-            // Rich photorealistic colors (lush greens, natural building and road tones)
-            esri.brightness = 1.08;
-            esri.saturation = 1.2;
-            esri.contrast = 1.06;
-            esri.gamma = 1.0;
+            // Balanced dark mode satellite: deep dark bay, visible streets, natural green parks, zero blowout
+            esri.brightness = 0.62;
+            esri.saturation = 0.75;
+            esri.contrast = 1.18;
+            esri.gamma = 0.88;
         }
     } catch (error) {
         console.error("[CRITICAL RENDERING FAULT] Mesh load aborted:", error);
@@ -48,7 +48,7 @@ async function initGoogle3DTiles() {
 }
 
 /**
- * Programmatically transforms default lighting maps to match Image 2's crisp, photorealistic architectural standard.
+ * Programmatically transforms default lighting maps to match a sleek dark digital twin.
  */
 function injectCinematicEnvironmentStyle() {
     const scene = viewer.scene;
@@ -58,28 +58,34 @@ function injectCinematicEnvironmentStyle() {
     scene.shadowMap.softShadows = true;
     scene.shadowMap.size = 2048;
 
-    scene.globe.baseColor = Cesium.Color.fromCssColorString('#243042');
-    scene.backgroundColor = Cesium.Color.fromCssColorString('#111827');
+    // Deep dark navy ocean base (eliminates blinding white water blowout)
+    scene.globe.baseColor = Cesium.Color.fromCssColorString('#080e18');
+    scene.backgroundColor = Cesium.Color.fromCssColorString('#050810');
 
     if (scene.skyAtmosphere) {
         scene.skyAtmosphere.show = true;
-        scene.skyAtmosphere.hueShift = 0.0;
-        scene.skyAtmosphere.saturationShift = 0.15;
-        scene.skyAtmosphere.brightnessShift = 0.05;
+        scene.skyAtmosphere.hueShift = -0.05;
+        scene.skyAtmosphere.saturationShift = -0.2;
+        scene.skyAtmosphere.brightnessShift = -0.3;
     }
 
     scene.globe.enableLighting = true;
 
-    // Crisp, warm architectural sunlight (sculpts facades, revealing trees, sidewalks, and streets like Image 2)
+    // Balanced architectural twilight light (cool silver-blue, sculpts massing without blowing out surfaces)
     scene.light = new Cesium.DirectionalLight({
-        direction: new Cesium.Cartesian3(0.5, -0.65, -0.55),
-        color: Cesium.Color.fromCssColorString('#fff6e8'),
-        intensity: 2.6
+        direction: new Cesium.Cartesian3(0.42, -0.58, -0.68),
+        color: Cesium.Color.fromCssColorString('#cbd8ee'),
+        intensity: 1.35
     });
     
     scene.fog.enabled = true;
-    scene.fog.density = 0.00007;
-    scene.globe.showGroundAtmosphere = true;
+    scene.fog.density = 0.0001;
+    scene.globe.showGroundAtmosphere = false;
+
+    // Disable bloom to prevent overexposure
+    if (scene.postProcessStages && scene.postProcessStages.bloom) {
+        scene.postProcessStages.bloom.enabled = false;
+    }
 }
 
 /**
