@@ -53,7 +53,18 @@ class Settings:
     nebius_api_key: str = os.getenv("NEBIUS_API_KEY", "")
     nebius_model: str = os.getenv("NEBIUS_MODEL", "")
     nebius_base_url: str = os.getenv("NEBIUS_BASE_URL", "https://api.studio.nebius.ai/v1")
+    # Flower Model (Endeavor) exposes the OpenAI Responses API, not Chat Completions.
+    flower_api_key: str = os.getenv("FLOWER_API_KEY", "")
+    flower_model: str = os.getenv("FLOWER_MODEL", "flwrlabs/endeavor-1.0")
+    flower_base_url: str = os.getenv("FLOWER_BASE_URL", "https://api.flower.ai/v1")
     llm_timeout_sec: float = _env_float("LLM_TIMEOUT_SEC", 45.0)
+    # Independent LLM reviewers are advisory only; dispatch still requires a human.
+    multi_agent_deliberation: bool = os.getenv("MULTI_AGENT_DELIBERATION", "true").lower() == "true"
+    multi_agent_experts: tuple[str, ...] = tuple(
+        name.strip().lower()
+        for name in os.getenv("MULTI_AGENT_EXPERTS", "anthropic,nebius,flower").split(",")
+        if name.strip()
+    )
 
     # Camera — ALERTCalifornia (UC San Diego), California camera network:
     #   https://alertcalifornia.org/  |  Partner API token → ALERTCA_API_KEY

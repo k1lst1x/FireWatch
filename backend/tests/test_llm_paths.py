@@ -118,3 +118,30 @@ def test_nebius_provider_selected(monkeypatch):
     assert llm.provider() == "nebius"
     assert llm.model_name() == "test-model"
     assert type(llm.build_model()).__name__ == "OpenAIChatModel"
+
+
+def test_expert_providers_require_a_model_for_nebius(monkeypatch):
+    from app.config import settings
+    from app.services.ai.agents import llm
+
+    monkeypatch.setattr(settings, "is_mock", False)
+    monkeypatch.setattr(settings, "multi_agent_deliberation", True)
+    monkeypatch.setattr(settings, "multi_agent_experts", ("anthropic", "nebius"))
+    monkeypatch.setattr(settings, "anthropic_api_key", "anthropic-test")
+    monkeypatch.setattr(settings, "nebius_api_key", "nebius-test")
+    monkeypatch.setattr(settings, "nebius_model", "")
+    assert llm.expert_providers() == ["anthropic"]
+    monkeypatch.setattr(settings, "nebius_model", "test-model")
+    assert llm.expert_providers() == ["anthropic", "nebius"]
+
+
+def test_expert_providers_include_flower_when_configured(monkeypatch):
+    from app.config import settings
+    from app.services.ai.agents import llm
+
+    monkeypatch.setattr(settings, "is_mock", False)
+    monkeypatch.setattr(settings, "multi_agent_deliberation", True)
+    monkeypatch.setattr(settings, "multi_agent_experts", ("flower",))
+    monkeypatch.setattr(settings, "flower_api_key", "flower-test")
+    monkeypatch.setattr(settings, "flower_model", "flwrlabs/endeavor-1.0")
+    assert llm.expert_providers() == ["flower"]

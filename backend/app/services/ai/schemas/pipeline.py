@@ -84,6 +84,21 @@ class SuggestionResult(BaseModel):
     source: Optional[str] = None
 
 
+class ExpertOpinion(BaseModel):
+    provider: str
+    criticality: CriticalityLevel
+    score: float = Field(ge=0.0, le=1.0)
+    rationale: str
+
+
+class DeliberationResult(BaseModel):
+    opinions: List[ExpertOpinion] = Field(default_factory=list)
+    consensus_criticality: Optional[CriticalityLevel] = None
+    consensus_score: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    disagreement: bool = False
+    summary: str
+
+
 class OutputResult(BaseModel):
     notification_sent: bool
     dashboard_updated: bool
@@ -100,6 +115,7 @@ class PipelineResult(BaseModel):
     fusion: Optional[FusionResult] = None
     reasoning: Optional[ReasoningResult] = None
     classification: Optional[ClassificationResult] = None
+    deliberation: Optional[DeliberationResult] = None
     suggestion: Optional[SuggestionResult] = None
     output: Optional[OutputResult] = None
     error: Optional[str] = None

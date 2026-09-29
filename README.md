@@ -50,6 +50,10 @@ Every key is optional; each agent falls back instead of failing:
 
 Nebius uses an OpenAI-compatible API. In your ignored `.env`, set `LLM_PROVIDER=nebius`, paste the credential into `NEBIUS_API_KEY`, and run `uv run python scripts/check_nebius.py`. The command lists the models enabled for your Nebius project; copy the model ID you choose into `NEBIUS_MODEL` and re-run the check. The API base URL is already set to `https://api.studio.nebius.ai/v1`.
 
+### Multi-agent deliberation
+
+With provider keys configured, set `MULTI_AGENT_DELIBERATION=true` and list the reviewers in `MULTI_AGENT_EXPERTS` (for example `anthropic,nebius,flower`). The providers review the same confirmed-incident evidence independently; `/ai/analyze` returns their opinions, consensus, and material disagreement in `deliberation`. Flower Model / Endeavor uses `FLOWER_API_KEY` with `https://api.flower.ai/v1` and is a separate model reviewer from the local Flower federated-learning simulation. This is advisory information only: sensor fusion remains unchanged, and the dispatcher must still approve any action. Flower federated learning then uses final dispatcher feedback to tune shared fusion parameters across stations.
+
 Confirmed fires are **held for dispatcher approval** (`REQUIRE_HUMAN_APPROVAL=true`) — nothing is broadcast until a human clicks Dispatch.
 
 Demo insurance: run once with `REPLAY_MODE=record`, then present with `REPLAY_MODE=replay` so stage-1 data comes from disk if the network dies.

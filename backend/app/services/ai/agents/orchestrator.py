@@ -18,6 +18,7 @@ from . import replay
 from .base import BaseAgent
 from .camera import CameraAgent
 from .classification import ClassificationAgent
+from .deliberation import DeliberationAgent
 from .fusion import FusionAgent
 from .output import OutputAgent
 from .reasoning import ReasoningAgent
@@ -37,6 +38,7 @@ class OrchestratorAgent(BaseAgent):
         self.fusion = FusionAgent()
         self.reasoning = ReasoningAgent()
         self.classification = ClassificationAgent()
+        self.deliberation = DeliberationAgent()
         self.suggestion = SuggestionAgent()
         self.output = OutputAgent()
 
@@ -122,6 +124,15 @@ class OrchestratorAgent(BaseAgent):
                 fusion=fusion_res,
             )
             result.classification = classification_res
+
+            # ── Stage 4b: independent LLM deliberation (advisory only) ────────────
+            logger.info("[%s] Stage 4b – independent expert deliberation", event.event_id)
+            result.deliberation = await self.deliberation.run(
+                reasoning=reasoning_res,
+                classification=classification_res,
+                fusion=fusion_res,
+                weather=weather_res,
+            )
 
             # ── Stage 5: suggestion ────────────────────────────────────────────────
             logger.info("[%s] Stage 5 – suggestion", event.event_id)
