@@ -77,7 +77,7 @@ export class FireLayer {
       const confVal = incident.confidence ?? Math.round(incident.combined_score * 100)
       const cardHeight = height + 75
 
-      // 1. Sleek, focused volumetric cylinder beam anchored to 3D buildings
+      // 1. Broad, glowing volumetric cylinder beam (clamped tightly to photorealistic buildings)
       const anchor = Cesium.Cartesian3.fromDegrees(incident.lon, incident.lat, height / 2)
       const column = this.viewer.entities.add({
         id: `fire:${incident.id}`,
@@ -89,42 +89,28 @@ export class FireLayer {
         ),
         cylinder: {
           length: height,
-          topRadius: rejected ? 3.0 : 6.0,
-          bottomRadius: rejected ? 6.0 : 12.0,
+          topRadius: rejected ? 8.0 : 16.0,
+          bottomRadius: rejected ? 18.0 : 34.0,
           material: new Cesium.ColorMaterialProperty(
             new Cesium.CallbackProperty(() => {
               if (rejected) return base.withAlpha(0.2)
               const t = performance.now() / 1000
-              const flicker = 0.85 + 0.15 * Math.sin(t * 6 + seed)
-              const boost = this.focusedId === incident.id ? 1.25 : 1.0
+              const flicker = 0.72 + 0.16 * Math.sin(t * 8 + seed)
+              const boost = this.focusedId === incident.id ? 1.3 : 1.0
               return Cesium.Color.fromCssColorString('#ff6a00').withAlpha(
-                Math.min(0.7, 0.48 * flicker * boost)
+                Math.min(0.85, 0.65 * flicker * boost)
               )
             }, false),
           ),
           outline: true,
-          outlineColor: Cesium.Color.fromCssColorString('#ff4410').withAlpha(0.7),
-          outlineWidth: 1.0,
+          outlineColor: Cesium.Color.fromCssColorString('#ff3b10'),
+          outlineWidth: 2.0,
           heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
         },
       })
       this.entities.push(column)
 
-      // 2. Glowing holographic hexagonal beacon pin at anchor point
-      const baseHexCanvas = createHoloHexagon(hexStr)
-      const baseHex = this.viewer.entities.add({
-        position: Cesium.Cartesian3.fromDegrees(incident.lon, incident.lat, 8),
-        billboard: {
-          image: baseHexCanvas,
-          verticalOrigin: Cesium.VerticalOrigin.CENTER,
-          scale: 0.6,
-          scaleByDistance: new Cesium.NearFarScalar(500, 1.0, 12000, 0.45),
-          disableDepthTestDistance: 200,
-        },
-      })
-      this.entities.push(baseHex)
-
-      // 3. Thin glowing leader line connecting building/ground node to floating HUD card
+      // 2. Thin glowing leader line connecting building rooftop to floating HUD card
       const leaderLine = this.viewer.entities.add({
         polyline: {
           positions: [
@@ -134,7 +120,7 @@ export class FireLayer {
           width: 1.5,
           material: new Cesium.ColorMaterialProperty(
             new Cesium.CallbackProperty(() => {
-              const alpha = this.focusedId === incident.id ? 0.95 : 0.6
+              const alpha = this.focusedId === incident.id ? 0.9 : 0.55
               return Cesium.Color.fromCssColorString(hexStr).withAlpha(alpha)
             }, false),
           ),
@@ -142,7 +128,7 @@ export class FireLayer {
       })
       this.entities.push(leaderLine)
 
-      // 4. Ground holographic radar pulse ring
+      // 3. Ground holographic radar pulse ring
       if (!rejected) {
         const radius = (time?: Cesium.JulianDate) => ringRadius(seed, secondsOf(time))
         const fade = (time?: Cesium.JulianDate) => 1 - ringPhase(seed, secondsOf(time))
@@ -160,19 +146,19 @@ export class FireLayer {
               time => base.withAlpha(0.65 * fade(time)),
               false,
             ) as unknown as Cesium.Color,
-            outlineWidth: 1.5,
+            outlineWidth: 2,
           },
         })
         this.entities.push(ring)
       }
 
-      // 5. Sleek Frosted Glass HUD Callout Card (Inspired by Image 2 "CITY HALL")
+      // 4. Futuristic Frosted Glass HUD Callout Card (Inspired by Image 2)
       const rawCam = incident.result?.camera?.raw?.camera as { name?: string } | undefined
-      const locationName = rawCam?.name ?? 'Incident Sector'
+      const locationName = rawCam?.name ?? 'San Francisco Sector'
       const hudCanvas = createHoloCard(
         locationName,
-        `HOTSPOT · ${frpVal} MW (${confVal}%)`,
-        `${incident.criticality ?? 'NORMAL'}`,
+        `HOTSPOT · ${frpVal} MW`,
+        `${incident.criticality ?? 'DISMISSED'} · ${confVal}%`,
         hexStr,
       )
 
@@ -193,7 +179,7 @@ export class FireLayer {
       if (smokeIds.has(incident.id)) this.addSmoke(incident, height, base)
     }
 
-    // 6. Add Sci-Fi Holographic Hexagon Nodes & Spatial Callouts across landmarks (matching Image 2)
+    // 5. Add Sci-Fi Holographic Hexagon Nodes & Spatial Callouts across the 3D City (matching Image 2)
     this.addAuxiliaryHoloNodes()
   }
 
@@ -280,15 +266,15 @@ export class FireLayer {
 // HOLOGRAPHIC CANVAS GENERATORS (Matching Image 2 Design Specifications)
 // --------------------------------------------------------------------------
 
-/** Creates a sleek frosted glass HUD card matching the reference "CITY HALL" card */
+/** Creates a glowing frosted glass HUD card like Image 2 */
 function createHoloCard(title: string, subtitle: string, tag: string, accentColor: string): HTMLCanvasElement {
   const canvas = document.createElement('canvas')
-  canvas.width = 260
-  canvas.height = 76
+  canvas.width = 380
+  canvas.height = 140
   const ctx = canvas.getContext('2d')!
 
   // Background rounded frosted rectangle with dark glass effect
-  const x = 6, y = 6, w = 248, h = 64, r = 12
+  const x = 10, y = 10, w = 360, h = 120, r = 16
   ctx.beginPath()
   ctx.moveTo(x + r, y)
   ctx.arcTo(x + w, y, x + w, y + h, r)
@@ -297,62 +283,56 @@ function createHoloCard(title: string, subtitle: string, tag: string, accentColo
   ctx.arcTo(x, y, x + w, y, r)
   ctx.closePath()
 
-  // Frosted dark glass fill (deep twilight navy glass)
-  ctx.fillStyle = 'rgba(8, 14, 23, 0.88)'
+  // Frosted dark glass fill
+  ctx.fillStyle = 'rgba(8, 14, 24, 0.88)'
   ctx.fill()
 
-  // Subtle clean border with faint accent tint
-  ctx.lineWidth = 1.2
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)'
-  ctx.stroke()
-
-  // Fine top accent line
-  ctx.strokeStyle = accentColor
+  // Glowing cyber border
   ctx.lineWidth = 2
-  ctx.beginPath()
-  ctx.moveTo(x + 16, y)
-  ctx.lineTo(x + 50, y)
+  ctx.strokeStyle = accentColor
+  ctx.shadowColor = accentColor
+  ctx.shadowBlur = 12
   ctx.stroke()
+  ctx.shadowBlur = 0 // reset shadow
 
-  // Title (CITY HALL style)
-  ctx.font = 'bold 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-  ctx.fillStyle = '#f8fafc'
-  const displayTitle = title.length > 20 ? title.slice(0, 19) + '…' : title
-  ctx.fillText(displayTitle.toUpperCase(), x + 16, y + 25)
+  // Top header status tag
+  ctx.font = 'bold 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+  ctx.fillStyle = '#ffffff'
+  ctx.fillText(title.toUpperCase(), 26, 42)
 
   // Subtitle (Hotspot & FRP)
-  ctx.font = '500 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+  ctx.font = '500 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
   ctx.fillStyle = '#94a3b8'
-  ctx.fillText(subtitle, x + 16, y + 44)
+  ctx.fillText(subtitle, 26, 70)
 
-  // Right pill badge
-  const badgeW = 60, badgeH = 20, badgeX = x + w - badgeW - 14, badgeY = y + 22
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.08)'
+  // Badge pill in bottom right
+  const badgeW = 120, badgeH = 26, badgeX = 26, badgeY = 86
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
   ctx.beginPath()
-  ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 10)
+  ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 13)
   ctx.fill()
 
-  // Status dot inside pill
+  // Glowing status dot inside badge
   ctx.fillStyle = accentColor
   ctx.beginPath()
-  ctx.arc(badgeX + 10, badgeY + 10, 3.5, 0, Math.PI * 2)
+  ctx.arc(badgeX + 12, badgeY + 13, 4, 0, Math.PI * 2)
   ctx.fill()
 
-  ctx.font = 'bold 9px monospace'
+  ctx.font = 'bold 11px monospace'
   ctx.fillStyle = '#e2e8f0'
-  ctx.fillText(tag.slice(0, 6), badgeX + 18, badgeY + 13)
+  ctx.fillText(tag, badgeX + 24, badgeY + 17)
 
   return canvas
 }
 
-/** Creates a glowing holographic hexagon node marker matching Image 2 */
+/** Creates a glowing holographic hexagon node marker (blue/violet) matching Image 2 */
 function createHoloHexagon(color: string): HTMLCanvasElement {
   const canvas = document.createElement('canvas')
-  canvas.width = 64
-  canvas.height = 64
+  canvas.width = 72
+  canvas.height = 72
   const ctx = canvas.getContext('2d')!
 
-  const cx = 32, cy = 32, r = 20
+  const cx = 36, cy = 36, r = 24
   ctx.beginPath()
   for (let i = 0; i < 6; i++) {
     const angle = (Math.PI / 3) * i - Math.PI / 6
@@ -363,33 +343,21 @@ function createHoloHexagon(color: string): HTMLCanvasElement {
   }
   ctx.closePath()
 
-  // Translucent glass fill
-  ctx.fillStyle = 'rgba(10, 17, 28, 0.85)'
+  // Translucent glowing fill
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.85)'
   ctx.fill()
 
-  // Fine glowing stroke
-  ctx.lineWidth = 1.8
+  // Neon glowing stroke
+  ctx.lineWidth = 2.5
   ctx.strokeStyle = color
+  ctx.shadowColor = color
+  ctx.shadowBlur = 14
   ctx.stroke()
+  ctx.shadowBlur = 0
 
-  // Inner concentric hexagon wireframe (matching reference graphic)
-  const innerR = 11
+  // Inner geometric core
   ctx.beginPath()
-  for (let i = 0; i < 6; i++) {
-    const angle = (Math.PI / 3) * i - Math.PI / 6
-    const x = cx + innerR * Math.cos(angle)
-    const y = cy + innerR * Math.sin(angle)
-    if (i === 0) ctx.moveTo(x, y)
-    else ctx.lineTo(x, y)
-  }
-  ctx.closePath()
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)'
-  ctx.lineWidth = 1
-  ctx.stroke()
-
-  // Center glowing pip
-  ctx.beginPath()
-  ctx.arc(cx, cy, 3, 0, Math.PI * 2)
+  ctx.arc(cx, cy, 6, 0, Math.PI * 2)
   ctx.fillStyle = color
   ctx.fill()
 
@@ -399,26 +367,26 @@ function createHoloHexagon(color: string): HTMLCanvasElement {
 /** Creates a sleek spatial callout like "80 Kilometre walkways" in Image 2 */
 function createSpatialCallout(primary: string, secondary: string): HTMLCanvasElement {
   const canvas = document.createElement('canvas')
-  canvas.width = 240
-  canvas.height = 54
+  canvas.width = 300
+  canvas.height = 70
   const ctx = canvas.getContext('2d')!
 
-  ctx.fillStyle = 'rgba(7, 12, 20, 0.75)'
+  ctx.fillStyle = 'rgba(8, 12, 20, 0.78)'
   ctx.beginPath()
-  ctx.roundRect(4, 4, 232, 46, 8)
+  ctx.roundRect(8, 8, 284, 54, 10)
   ctx.fill()
 
   ctx.lineWidth = 1
-  ctx.strokeStyle = 'rgba(148, 163, 184, 0.25)'
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)'
   ctx.stroke()
 
-  ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+  ctx.font = 'bold 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
   ctx.fillStyle = '#f8fafc'
-  ctx.fillText(primary, 14, 24)
+  ctx.fillText(primary, 20, 32)
 
-  ctx.font = '10px monospace'
+  ctx.font = '11px monospace'
   ctx.fillStyle = '#94a3b8'
-  ctx.fillText(secondary, 14, 40)
+  ctx.fillText(secondary, 20, 50)
 
   return canvas
 }

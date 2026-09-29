@@ -1,21 +1,22 @@
 import * as Cesium from 'cesium'
 import { CONFIG, type BasemapTier } from './config'
 import { addBakedBuildings } from './buildings'
+import { optimizeCaliforniaRendering } from './californiaTour'
 
 /**
- * Picks the best 3D city we can actually render, in order:
+ * Builds the 3D digital twin for California:
  *
- *   1. Google Photorealistic 3D Tiles  (needs VITE_GOOGLE_3D_TILES_KEY)
- *   2. Cesium OSM Buildings            (needs VITE_CESIUM_ION_TOKEN)
- *   3. Baked OSM footprints            (no key, ships with the app)
- *
- * Each tier falls through on failure, so a dead key or a blown quota degrades
- * to something that still looks like a city instead of an empty globe.
+ *   1. Google Photorealistic 3D Tiles (if VITE_GOOGLE_3D_TILES_KEY is provided)
+ *   2. Cesium OSM Buildings with California tile optimization & architectural styling
+ *   3. Baked OSM footprints (offline fallback)
  */
 export async function buildCity(
   viewer: Cesium.Viewer,
   signal: { cancelled: boolean },
 ): Promise<BasemapTier> {
+  // Pre-configure globe terrain tile caching (3000 tiles)
+  optimizeCaliforniaRendering(viewer)
+
   if (CONFIG.googleTilesKey) {
     try {
       const tileset = await Cesium.createGooglePhotorealistic3DTileset({
@@ -23,7 +24,6 @@ export async function buildCity(
       })
       if (signal.cancelled) return 'photorealistic'
       viewer.scene.primitives.add(tileset)
-      // the mesh carries its own imagery, so the globe underneath is dead weight
       viewer.scene.globe.show = false
       return 'photorealistic'
     } catch (err) {
@@ -33,14 +33,18 @@ export async function buildCity(
 
   await addKeylessImagery(viewer)
 
-  // 2. Statewide / Worldwide 3D OSM Buildings (Cesium Ion)
+  // 2. Statewide 3D OSM Buildings (Cesium Ion)
   try {
     if (CONFIG.cesiumIonToken) {
       Cesium.Ion.defaultAccessToken = CONFIG.cesiumIonToken
     }
     const osm = await Cesium.createOsmBuildingsAsync()
     if (signal.cancelled) return 'ion'
+
+    // Configure 2048MB GPU cache & pre-loading for whole state exploration
+    optimizeCaliforniaRendering(viewer, osm)
     applyArchitecturalStyle(osm)
+
     viewer.scene.primitives.add(osm)
     return 'ion'
   } catch (err) {

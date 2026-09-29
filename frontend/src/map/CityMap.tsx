@@ -5,6 +5,12 @@ import { applyCinematicStyle, buildCity, frameDowntown } from './basemap'
 import { FireLayer } from './fireLayer'
 import { type BasemapTier } from './config'
 import type { Incident } from '../lib/api'
+import {
+  CaliforniaTourController,
+  type TourStop,
+  type TourState,
+  prerenderCaliforniaSectors,
+} from './californiaTour'
 
 interface Props {
   incidents: Incident[]
@@ -14,21 +20,41 @@ interface Props {
   resetToken: number
   onReady: (tier: BasemapTier) => void
   cameraMode?: 'california' | 'isometric' | 'topdown' | 'cinematic'
+  autoTour?: boolean
+  onTourChange?: (stop: TourStop, index: number, total: number, state: TourState) => void
+  tourControllerRef?: React.MutableRefObject<CaliforniaTourController | null>
+  onPrerenderProgress?: (current: number, total: number, stopName: string) => void
 }
 
-export default function CityMap({ incidents, selectedId, onSelect, resetToken, onReady, cameraMode = 'isometric' }: Props) {
+export default function CityMap({
+  incidents,
+  selectedId,
+  onSelect,
+  resetToken,
+  onReady,
+  cameraMode = 'isometric',
+  autoTour = false,
+  onTourChange,
+  tourControllerRef,
+  onPrerenderProgress,
+}: Props) {
   const hostRef = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<Cesium.Viewer | null>(null)
   const layerRef = useRef<FireLayer | null>(null)
+  const tourRef = useRef<CaliforniaTourController | null>(null)
   const selectRef = useRef(onSelect)
   const readyRef = useRef(onReady)
+  const tourChangeRef = useRef(onTourChange)
+  const prerenderRef = useRef(onPrerenderProgress)
   const [ready, setReady] = useState(false)
 
   // keep the latest callbacks reachable from the long-lived Cesium handlers
   useEffect(() => {
     selectRef.current = onSelect
     readyRef.current = onReady
-  }, [onSelect, onReady])
+    tourChangeRef.current = onTourChange
+    prerenderRef.current = onPrerenderProgress
+  }, [onSelect, onReady, onTourChange, onPrerenderProgress])
 
   // --- viewer lifecycle (once)
   useEffect(() => {
@@ -68,6 +94,18 @@ export default function CityMap({ incidents, selectedId, onSelect, resetToken, o
     frameDowntown(viewer)
     layerRef.current = new FireLayer(viewer)
 
+    // Instantiate California Tour & Autopilot Controller
+    const controller = new CaliforniaTourController(viewer)
+    tourRef.current = controller
+    if (tourControllerRef) tourControllerRef.current = controller
+
+    controller.addListener({
+      onStopChange: (stop, idx, tot, state) => {
+        tourChangeRef.current?.(stop, idx, tot, state)
+      },
+      onStateChange: () => {},
+    })
+
     // click a column to select its incident
     const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas)
     handler.setInputAction((click: { position: Cesium.Cartesian2 }) => {
@@ -85,6 +123,13 @@ export default function CityMap({ incidents, selectedId, onSelect, resetToken, o
         if (signal.cancelled) return
         setReady(true)
         readyRef.current(tier)
+
+        // Pre-warm / pre-render the California sectors in background
+        prerenderCaliforniaSectors(viewer, (cur, tot, stop) => {
+          if (!signal.cancelled) {
+            prerenderRef.current?.(cur, tot, stop.name)
+          }
+        }).catch(err => console.warn('[map] pre-render notice:', err))
       })
       .catch(err => {
         console.error('[map] city build failed', err)
@@ -96,13 +141,16 @@ export default function CityMap({ incidents, selectedId, onSelect, resetToken, o
 
     return () => {
       signal.cancelled = true
+      controller.stop()
       handler.destroy()
       layerRef.current?.destroy()
       layerRef.current = null
       viewerRef.current = null
+      tourRef.current = null
+      if (tourControllerRef) tourControllerRef.current = null
       if (!viewer.isDestroyed()) viewer.destroy()
     }
-  }, [])
+  }, [tourControllerRef])
 
   // --- incidents
   useEffect(() => {
@@ -129,13 +177,28 @@ export default function CityMap({ incidents, selectedId, onSelect, resetToken, o
   useEffect(() => {
     const viewer = viewerRef.current
     if (!viewer || !ready || resetToken === 0) return
+    tourRef.current?.stop()
     frameDowntown(viewer)
   }, [resetToken, ready])
+
+  // --- auto tour control
+  useEffect(() => {
+    const controller = tourRef.current
+    if (!controller || !ready) return
+
+    if (autoTour) {
+      controller.start()
+    } else {
+      if (controller.isActive()) {
+        controller.stop()
+      }
+    }
+  }, [autoTour, ready])
 
   // --- camera modes from blueprint
   useEffect(() => {
     const viewer = viewerRef.current
-    if (!viewer || !ready) return
+    if (!viewer || !ready || autoTour) return
 
     if (cameraMode === 'california') {
       viewer.camera.flyTo({
@@ -170,7 +233,7 @@ export default function CityMap({ incidents, selectedId, onSelect, resetToken, o
         duration: 2.2,
       })
     }
-  }, [cameraMode, ready])
+  }, [cameraMode, ready, autoTour])
 
   return <div ref={hostRef} className="absolute inset-0" data-map-ready={ready} />
 }
