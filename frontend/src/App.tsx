@@ -1,12 +1,24 @@
+import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
+import Landing from './landing/Landing'
 import Login from './pages/Login'
-import Dashboard from './pages/Dashboard'
+
+// keeps Leaflet and the dashboard out of the landing page's bundle
+const Dashboard = lazy(() => import('./pages/Dashboard'))
 
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Login />} />
-      <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/" element={<Landing />} />
+      <Route path="/login" element={<Login />} />
+      <Route
+        path="/dashboard"
+        element={
+          <Suspense fallback={<div className="h-screen w-full bg-[#080808]" />}>
+            <Dashboard />
+          </Suspense>
+        }
+      />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

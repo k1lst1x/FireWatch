@@ -14,7 +14,7 @@ export default function Dashboard() {
 
   return (
     <BayhawkProvider>
-    <div className={`flex flex-col h-full ${dark ? 'bg-[#080808]' : 'bg-gray-100'}`}>
+    <div className={`flex flex-col h-screen overflow-hidden ${dark ? 'bg-[#080808]' : 'bg-gray-100'}`}>
       <Header />
 
       <div className="flex flex-1 overflow-hidden">
