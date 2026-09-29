@@ -101,6 +101,47 @@ async def nearby_cameras(
     }
 
 
+@router.get("/cameras")
+async def camera_directory(
+    limit: int = Query(default=15_000, ge=1, le=20_000),
+    _user=Depends(require_user),
+):
+    """Return every online AlertWest camera for map rendering.
+
+    The AlertWest directory is cached by ``fetch_cameras``. This route deliberately
+    returns a compact public representation rather than the provider's raw payload.
+    """
+    if settings.camera_source != "alertwest":
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="Camera directory browsing is available when CAMERA_SOURCE=alertwest",
+        )
+
+    try:
+        cameras = await alertwest.fetch_cameras()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The live camera directory is temporarily unavailable",
+        ) from exc
+
+    available = [camera for camera in cameras if not camera.offline and camera.image_url()]
+    return {
+        "source": "alertwest",
+        "camera_count": len(available),
+        "cameras": [
+            {
+                "id": camera.cid,
+                "name": camera.name,
+                "lat": camera.lat,
+                "lon": camera.lon,
+                "image_url": camera.image_url(),
+            }
+            for camera in available[:limit]
+        ],
+    }
+
+
 @router.post("/analyze", response_model=PipelineResult, status_code=status.HTTP_200_OK)
 async def analyze(
     event: AlertEvent,

@@ -63,6 +63,12 @@ export interface NearbyCamerasResponse {
   cameras: NearbyCamera[]
 }
 
+export interface CameraDirectoryResponse {
+  source: string
+  camera_count: number
+  cameras: Array<Omit<NearbyCamera, 'distance_km'>>
+}
+
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const token = sessionStorage.getItem('firewatch-token')
   const res = await fetch(`/api${path}`, {
@@ -87,6 +93,7 @@ export const api = {
   status: () => call<PipelineStatus>('/ai/status'),
   incidents: () => call<Incident[]>('/ai/incidents'),
   demoImages: () => call<string[]>('/ai/demo-images'),
+  cameraDirectory: () => call<CameraDirectoryResponse>('/ai/cameras'),
   nearbyCameras: (lat: number, lon: number) =>
     call<NearbyCamerasResponse>(`/ai/cameras/nearby?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`),
   analyze: (body: AnalyzeInput) => call<PipelineResult>('/ai/analyze', { method: 'POST', body: JSON.stringify(body) }),

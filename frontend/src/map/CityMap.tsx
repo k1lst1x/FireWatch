@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import * as Cesium from 'cesium'
 import 'cesium/Build/Cesium/Widgets/widgets.css'
 import { applyCinematicStyle, buildCity, frameDowntown } from './basemap'
+import { CameraLayer } from './cameraLayer'
 import { FireLayer } from './fireLayer'
 import { type BasemapTier } from './config'
-import type { Incident } from '../lib/api'
+import type { CameraDirectoryResponse, Incident } from '../lib/api'
 import {
   CaliforniaTourController,
   type TourStop,
@@ -14,6 +15,7 @@ import {
 
 interface Props {
   incidents: Incident[]
+  cameras: CameraDirectoryResponse['cameras']
   selectedId: string | null
   onSelect: (id: string | null) => void
   /** Bumping this flies the camera back to the opening shot. */
@@ -28,6 +30,7 @@ interface Props {
 
 export default function CityMap({
   incidents,
+  cameras,
   selectedId,
   onSelect,
   resetToken,
@@ -41,6 +44,7 @@ export default function CityMap({
   const hostRef = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<Cesium.Viewer | null>(null)
   const layerRef = useRef<FireLayer | null>(null)
+  const cameraLayerRef = useRef<CameraLayer | null>(null)
   const tourRef = useRef<CaliforniaTourController | null>(null)
   const selectRef = useRef(onSelect)
   const readyRef = useRef(onReady)
@@ -93,6 +97,7 @@ export default function CityMap({
     applyCinematicStyle(viewer)
     frameDowntown(viewer)
     layerRef.current = new FireLayer(viewer)
+    cameraLayerRef.current = new CameraLayer(viewer)
 
     // Guard against uncaught rendering errors so single asset faults never kill rendering
     viewer.scene.renderError.addEventListener((_scene, error) => {
@@ -175,6 +180,8 @@ export default function CityMap({
       handler.destroy()
       layerRef.current?.destroy()
       layerRef.current = null
+      cameraLayerRef.current?.destroy()
+      cameraLayerRef.current = null
       viewerRef.current = null
       tourRef.current = null
       if (tourControllerRef) tourControllerRef.current = null
@@ -187,6 +194,12 @@ export default function CityMap({
     if (!ready) return
     layerRef.current?.render(incidents)
   }, [incidents, ready])
+
+  // --- statewide AlertWest directory, clustered by Cesium at every zoom level
+  useEffect(() => {
+    if (!ready) return
+    cameraLayerRef.current?.render(cameras)
+  }, [cameras, ready])
 
   // --- selection: highlight and fly in
   useEffect(() => {

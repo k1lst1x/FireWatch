@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Home, Play, Pause, SkipForward, SkipBack, X, Compass } from 'lucide-react'
 import { BayhawkProvider, useBayhawk } from '../context/BayhawkContext'
@@ -9,7 +9,7 @@ import { AnalysisBar, IncidentDetail } from '../map/overlays/Inspector'
 import FlameMark from '../map/overlays/FlameMark'
 import type { BasemapTier } from '../map/config'
 import type { CaliforniaTourController, TourStop, TourState } from '../map/californiaTour'
-import type { AnalyzeInput } from '../lib/api'
+import { api, type AnalyzeInput, type CameraDirectoryResponse } from '../lib/api'
 import '../map/map.css'
 
 function Console() {
@@ -19,6 +19,7 @@ function Console() {
   const [resetToken, setResetToken] = useState(0)
   const [tier, setTier] = useState<BasemapTier | null>(null)
   const [booted, setBooted] = useState(false)
+  const [cameras, setCameras] = useState<CameraDirectoryResponse['cameras']>([])
 
   const [cameraMode, setCameraMode] = useState<'california' | 'isometric' | 'topdown' | 'cinematic'>('isometric')
   const [hudVisible, setHudVisible] = useState(true)
@@ -54,6 +55,21 @@ function Console() {
     [analyze],
   )
 
+  // The map loads the statewide directory once after the authenticated API is online.
+  // Cesium clusters the markers, so this does not turn a statewide view into 13k labels.
+  useEffect(() => {
+    if (!backendUp) return
+    let cancelled = false
+    api.cameraDirectory()
+      .then(({ cameras: directory }) => {
+        if (!cancelled) setCameras(directory)
+      })
+      .catch(() => {
+        if (!cancelled) setCameras([])
+      })
+    return () => { cancelled = true }
+  }, [backendUp])
+
   const handlePrerenderProgress = useCallback((cur: number, tot: number, name: string) => {
     setPrerender({
       current: cur,
@@ -71,6 +87,7 @@ function Console() {
     <div className="fwmap">
       <CityMap
         incidents={shown}
+        cameras={cameras}
         selectedId={selectedId}
         onSelect={setSelectedId}
         resetToken={resetToken}
