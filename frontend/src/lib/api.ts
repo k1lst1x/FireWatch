@@ -77,6 +77,31 @@ export interface CameraDirectoryResponse {
   cameras: Array<Omit<NearbyCamera, 'distance_km'>>
 }
 
+export interface FederationStation {
+  id: string
+  name: string
+  online: boolean
+  labels: number
+  fp_rate: number | null
+  miss_rate?: number | null
+  params: { camera_weight: number; fusion_threshold: number; thermal_only_threshold: number }
+}
+
+export interface FederationRound {
+  round: number
+  fp_rate: number
+  miss_rate?: number
+  per_station: Record<string, number>
+}
+
+export interface FederationStatus {
+  round: number
+  running: boolean
+  stations: FederationStation[]
+  global_params: FederationStation['params']
+  history: FederationRound[]
+}
+
 export interface AgentTraceEntry {
   id: string
   name: string
@@ -124,6 +149,9 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ decision, note }),
     }),
+  federationStatus: () => call<FederationStatus>('/federation/status'),
+  federationRound: (rounds = 1) =>
+    call<FederationStatus>('/federation/round', { method: 'POST', body: JSON.stringify({ rounds }) }),
   telemetryWeather: (lat = 37.7749, lon = -122.4194) =>
     call<{ latitude: number; longitude: number; current: any; spread_risk: number; source: string; timestamp: string }>(
       `/ai/telemetry/live-weather?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`,

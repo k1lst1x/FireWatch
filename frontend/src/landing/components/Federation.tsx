@@ -3,6 +3,7 @@ import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { Lock, Play } from 'lucide-react'
 import { Kicker, Split } from './bits'
+import { api, type FederationStatus } from '../../lib/api'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -14,7 +15,7 @@ interface Station {
   fp_rate: number
   params: { camera_weight: number; fusion_threshold: number; thermal_only_threshold: number }
 }
-interface Round { round: number; fp_rate: number; per_station: Record<StationId, number> }
+interface Round { round: number; fp_rate: number; miss_rate?: number; per_station: Record<StationId, number> }
 
 // Mirrors the /api/federation/status shape from the frontend brief (illustrative values).
 const INITIAL_STATIONS: Station[] = [
@@ -152,6 +153,27 @@ export default function Federation() {
   const [history, setHistory] = useState(INITIAL_HISTORY)
   const [running, setRunning] = useState(false)
   const [drawKey, setDrawKey] = useState(0)
+  const [live, setLive] = useState(false)
+  const [runError, setRunError] = useState<string | null>(null)
+
+  const applyStatus = (st: FederationStatus) => {
+    setLive(true)
+    if (!st.history.length) return
+    const lastPer = st.history[st.history.length - 1].per_station
+    setStations(st.stations.map(s => ({
+      id: s.id as StationId,
+      name: s.name,
+      labels: s.labels,
+      fp_rate: s.fp_rate ?? lastPer[s.id] ?? 0,
+      params: s.params,
+    })))
+    setHistory(st.history as Round[])
+    setDrawKey(k => k + 1)
+  }
+
+  useEffect(() => {
+    api.federationStatus().then(applyStatus).catch(() => setLive(false))
+  }, [])
   const round = history[history.length - 1].round
   const first = history[0].fp_rate
   const now = history[history.length - 1].fp_rate
@@ -169,9 +191,20 @@ export default function Federation() {
     return () => ctx.revert()
   }, [])
 
-  const runRound = () => {
+  const runRound = async () => {
     if (running) return
     setRunning(true)
+    setRunError(null)
+    if (live) {
+      try {
+        applyStatus(await api.federationRound(1))
+      } catch (err) {
+        setRunError((err as Error).message)
+      } finally {
+        setRunning(false)
+      }
+      return
+    }
     window.setTimeout(() => {
       const jitter = () => (Math.random() - 0.5) * 0.02
       const next = stations.map(s => {
@@ -226,10 +259,16 @@ export default function Federation() {
             <span>{stations.length} stations</span>
             <span className="text-[var(--txt-3)]">·</span>
             <span>false alarms <span className="text-[var(--txt-2)]">{pct(first)}</span> → <span className="font-medium text-[var(--amber-hi)]">{pct(now)}</span></span>
+            {history[0].miss_rate != null && history[history.length - 1].miss_rate != null && (
+              <>
+                <span className="text-[var(--txt-3)]">·</span>
+                <span>missed fires <span className="text-[var(--txt-2)]">{pct(history[0].miss_rate!)}</span> → <span className="font-medium text-[var(--amber-hi)]">{pct(history[history.length - 1].miss_rate!)}</span></span>
+              </>
+            )}
           </div>
           <button className="fw-btn fw-btn--amber ml-auto !px-6 !py-3 !text-[15px] disabled:opacity-80" onClick={runRound} disabled={running}>
             {running ? <span className="fw-spinner" /> : <Play size={16} fill="currentColor" />}
-            {running ? 'Running round…' : 'Run federated round'}
+            {running ? (live ? 'Flower training…' : 'Running round…') : live ? 'Run live Flower round' : 'Run federated round'}
           </button>
         </div>
 
@@ -295,7 +334,12 @@ export default function Federation() {
             </div>
           </div>
         </div>
-        <p className="mono mt-4 text-[11px] text-[var(--txt-3)]">Illustrative data matching the /api/federation/status shape. Rounds run here are simulated in the browser.</p>
+        <p className="mono mt-4 text-[11px] text-[var(--txt-3)]">
+          {live
+            ? 'LIVE · Flower ServerApp (FedAvg) + 3 station ClientApps. Each round trains on dispatcher Dispatch / False-alarm labels via /api/federation.'
+            : 'Backend offline: illustrative preview. Start the backend to run real Flower rounds.'}
+        </p>
+        {runError && <p className="mono mt-2 text-[11px] text-red-400">{runError}</p>}
       </div>
     </section>
   )

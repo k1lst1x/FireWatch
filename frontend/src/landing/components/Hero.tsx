@@ -31,7 +31,7 @@ export function Nav({ onJump }: { onJump: (hash: string) => void }) {
             GitHub
           </a>
           <button className="fw-btn fw-btn--amber flex items-center gap-1.5" onClick={() => navigate('/dashboard')}>
-            <span>Launch 3D Map</span>
+            <span>Launch Live Map</span>
             <ArrowRight size={14} />
           </button>
         </div>

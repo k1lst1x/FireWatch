@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Home, ScrollText, Settings as SettingsIcon } from 'lucide-react'
+import { Home, Network, ScrollText, Settings as SettingsIcon } from 'lucide-react'
 import { BayhawkProvider, useBayhawk } from '../context/BayhawkContext'
 import CityMap from '../map/CityMap'
 import { DEMO_INCIDENTS } from '../map/demoIncidents'
@@ -13,6 +13,7 @@ import { CALIFORNIA_REALTIME_CAMERAS, calculateDistanceKm, type LiveCameraFeed }
 import LiveVideoModal from '../map/overlays/LiveVideoModal'
 import LiveWeatherWidget from '../map/overlays/LiveWeatherWidget'
 import AgentTracePanel from '../map/overlays/AgentTracePanel'
+import FederationPanel from '../map/overlays/FederationPanel'
 import {
   fetchLiveWeather,
   fetchNasaHotspots,
@@ -36,6 +37,7 @@ function Console() {
   const [cameraMode, setCameraMode] = useState<'isometric' | 'topdown' | 'cinematic'>('isometric')
   const [hudVisible, setHudVisible] = useState(true)
   const [logsOpen, setLogsOpen] = useState(false)
+  const [fedOpen, setFedOpen] = useState(false)
   const [agentTrace, setAgentTrace] = useState<AgentTraceResponse | null>(null)
   const [traceLoading, setTraceLoading] = useState(false)
   const [traceError, setTraceError] = useState<string | null>(null)
@@ -94,7 +96,7 @@ function Console() {
     return weather ? buildLiveSanFranciscoTelemetry(weather) : DEMO_INCIDENTS
   }, [weather])
 
-  const simulated = false
+  const simulated = !(backendUp && incidents.length > 0)
   const shown = useMemo(() => {
     if (backendUp && incidents.length > 0) return incidents
     return liveIncidents
@@ -293,10 +295,17 @@ function Console() {
           </button>
           <button
             className="fwmap-btn fwmap-btn--ghost !px-3 !py-1.5 text-[11px]"
-            onClick={() => { setLogsOpen(true); void loadAgentTrace() }}
+            onClick={() => { setFedOpen(false); setLogsOpen(true); void loadAgentTrace() }}
             title="Show backend agent trace"
           >
             <ScrollText size={13} /> Logs
+          </button>
+          <button
+            className="fwmap-btn fwmap-btn--ghost !px-3 !py-1.5 text-[11px]"
+            onClick={() => { setLogsOpen(false); setFedOpen(true) }}
+            title="Flower federated learning"
+          >
+            <Network size={13} /> Flower
           </button>
           <button
             className="fwmap-btn fwmap-btn--ghost !px-3 !py-2"
@@ -342,6 +351,8 @@ function Console() {
           onRefresh={() => void loadAgentTrace()}
         />
       )}
+
+      {fedOpen && <FederationPanel onClose={() => setFedOpen(false)} />}
 
       {/* right rail: real-time live weather widget + incident detail */}
       {hudVisible && (
