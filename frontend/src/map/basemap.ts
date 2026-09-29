@@ -49,7 +49,7 @@ export async function buildCity(
   return 'baked'
 }
 
-/** Satellite imagery that needs no key, graded down to a night-ops palette. */
+/** Satellite imagery in full, rich, photorealistic color (matching Google 3D Tiles & Image 2) */
 async function addKeylessImagery(viewer: Cesium.Viewer) {
   const layers = viewer.imageryLayers
   layers.removeAll()
@@ -60,54 +60,56 @@ async function addKeylessImagery(viewer: Cesium.Viewer) {
       credit: new Cesium.Credit('Imagery © Esri', false),
     }),
   )
-  // Ground is texture, not subject: crush it to a dark near-monochrome so the
-  // buildings and fire columns carry all the colour. Full saturation also drags
-  // Esri's compression artefacts up as magenta speckle.
-  layer.brightness = 0.26
-  layer.saturation = 0.0
-  layer.contrast = 1.15
-  layer.gamma = 0.7
+  // Full vibrant natural color: lush green trees, realistic concrete roads, and clear architectural tones
+  layer.brightness = 1.08
+  layer.saturation = 1.2
+  layer.contrast = 1.06
+  layer.gamma = 1.0
 }
 
-/** Programmatically transforms lighting maps to match the dark, high-contrast, cinematic twilight blueprint */
+/** Programmatically transforms lighting maps to match Image 2's crisp, photorealistic architectural standard */
 export function applyCinematicStyle(viewer: Cesium.Viewer) {
   const scene = viewer.scene
 
-  // Enable shadowing subsystem architecture
+  // Enable shadowing subsystem architecture with high-res texture maps
   scene.shadowMap.enabled = true
   scene.shadowMap.softShadows = true
-  scene.shadowMap.size = 2048 // Upscale shadow texture resolution maps
+  scene.shadowMap.size = 2048
 
-  scene.globe.baseColor = Cesium.Color.fromCssColorString('#05060a')
-  scene.backgroundColor = Cesium.Color.fromCssColorString('#05060a')
+  // Base earth colors: natural slate-blue earth, NOT pitch black void
+  scene.globe.baseColor = Cesium.Color.fromCssColorString('#243042')
+  scene.backgroundColor = Cesium.Color.fromCssColorString('#111827')
+
   if (scene.skyAtmosphere) {
     scene.skyAtmosphere.show = true
-    scene.skyAtmosphere.hueShift = -0.05
-    scene.skyAtmosphere.saturationShift = -0.35
-    scene.skyAtmosphere.brightnessShift = -0.45
+    scene.skyAtmosphere.hueShift = 0.0
+    scene.skyAtmosphere.saturationShift = 0.15
+    scene.skyAtmosphere.brightnessShift = 0.05
   }
   if (scene.skyBox) scene.skyBox.show = false
 
   scene.globe.enableLighting = true
 
-  // Map localized dark slate ambient matrix vectors (Deep twilight base blue tint)
+  // Crisp, warm architectural sunlight (sculpts building facades, revealing trees, sidewalks, and streets like Image 2)
   scene.light = new Cesium.DirectionalLight({
-    direction: new Cesium.Cartesian3(0.6, -0.4, -0.8),
-    color: Cesium.Color.fromCssColorString('#141923'),
-    intensity: 2.2,
+    direction: new Cesium.Cartesian3(0.5, -0.65, -0.55),
+    color: Cesium.Color.fromCssColorString('#fff6e8'),
+    intensity: 2.6,
   })
 
+  // Atmospheric fog: clean, clear visibility like modern 3D digital twins
   scene.fog.enabled = true
-  scene.fog.density = 0.0002
-  scene.globe.showGroundAtmosphere = false
+  scene.fog.density = 0.00007
+  scene.globe.showGroundAtmosphere = true
 
+  // Subtle bloom for holographic futuristic elements
   const bloom = scene.postProcessStages.bloom
   bloom.enabled = true
   bloom.uniforms.glowOnly = false
-  bloom.uniforms.contrast = 8
-  bloom.uniforms.brightness = -0.2
+  bloom.uniforms.contrast = 4.5
+  bloom.uniforms.brightness = -0.05
   bloom.uniforms.delta = 1.0
-  bloom.uniforms.sigma = 2.2
+  bloom.uniforms.sigma = 2.0
   bloom.uniforms.stepSize = 1.0
 }
 

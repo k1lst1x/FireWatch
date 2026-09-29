@@ -8,11 +8,11 @@ const CONFIG = {
 
     // Viewport Spatial Matrices (Matched to Isometric Reference Archetype)
     INITIAL_VIEW: {
-        longitude: -122.4194, // Standard Benchmark Anchor: San Francisco, CA
-        latitude: 37.7749,
-        height: 1150.0,       // Distance metric (meters above sea level)
-        pitch: -38.5,         // Oblique orientation mapping parameter
-        heading: 12.0,        // Rotational azimuth adjustment
+        longitude: -122.4120,
+        latitude: 37.7850,
+        height: 720.0,
+        pitch: -32.0,
+        heading: 28.0,
         roll: 0.0
     }
 };

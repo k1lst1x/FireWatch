@@ -18,15 +18,15 @@ export const CONFIG = {
   /** Baked San Francisco footprints, used whenever no photorealistic mesh is available. */
   buildingsUrl: '/data/sf-buildings.json',
 
-  /** Opening shot: oblique isometric benchmark anchor (San Francisco, CA) from blueprint */
+  /** Opening shot: crisp oblique isometric framing matching Image 2 architectural scale */
   initialView: {
-    longitude: -122.4194,
-    latitude: 37.7749,
-    height: 1150.0,
-    pitch: -38.5,
-    heading: 12.0,
+    longitude: -122.4120,
+    latitude: 37.7850,
+    height: 720.0,
+    pitch: -32.0,
+    heading: 28.0,
     roll: 0.0,
-    range: 3200,
+    range: 1650,
   },
 } as const
 
