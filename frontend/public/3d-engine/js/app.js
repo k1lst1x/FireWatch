@@ -26,7 +26,6 @@ async function initGoogle3DTiles() {
             viewer.scene.primitives.add(tileset);
             viewer.scene.globe.show = false;
         } else {
-            console.log("[Notice] Loading high-resolution photorealistic imagery in vibrant natural color.");
             const layers = viewer.imageryLayers;
             layers.removeAll();
             const esri = layers.addImageryProvider(
@@ -36,11 +35,11 @@ async function initGoogle3DTiles() {
                     credit: new Cesium.Credit('Imagery © Esri', false),
                 })
             );
-            // Rich photorealistic colors (lush greens, natural building and road tones)
-            esri.brightness = 1.08;
-            esri.saturation = 1.2;
-            esri.contrast = 1.06;
-            esri.gamma = 1.0;
+            // Balanced dusk photorealism: dark asphalt roads, rich foliage, zero blown-out water
+            esri.brightness = 0.74;
+            esri.saturation = 0.95;
+            esri.contrast = 1.16;
+            esri.gamma = 0.92;
         }
     } catch (error) {
         console.error("[CRITICAL RENDERING FAULT] Mesh load aborted:", error);
@@ -48,7 +47,7 @@ async function initGoogle3DTiles() {
 }
 
 /**
- * Programmatically transforms default lighting maps to match Image 2's crisp, photorealistic architectural standard.
+ * Programmatically transforms default lighting maps to match the dusk digital twin aesthetic.
  */
 function injectCinematicEnvironmentStyle() {
     const scene = viewer.scene;
@@ -58,46 +57,52 @@ function injectCinematicEnvironmentStyle() {
     scene.shadowMap.softShadows = true;
     scene.shadowMap.size = 2048;
 
-    scene.globe.baseColor = Cesium.Color.fromCssColorString('#243042');
-    scene.backgroundColor = Cesium.Color.fromCssColorString('#111827');
+    scene.globe.baseColor = Cesium.Color.fromCssColorString('#0a111a');
+    scene.backgroundColor = Cesium.Color.fromCssColorString('#070b12');
 
     if (scene.skyAtmosphere) {
         scene.skyAtmosphere.show = true;
-        scene.skyAtmosphere.hueShift = 0.0;
-        scene.skyAtmosphere.saturationShift = 0.15;
-        scene.skyAtmosphere.brightnessShift = 0.05;
+        scene.skyAtmosphere.hueShift = -0.05;
+        scene.skyAtmosphere.saturationShift = -0.1;
+        scene.skyAtmosphere.brightnessShift = -0.12;
     }
 
     scene.globe.enableLighting = true;
 
-    // Crisp, warm architectural sunlight (sculpts facades, revealing trees, sidewalks, and streets like Image 2)
+    // Balanced directional twilight light (crisp architectural massing without glowing sun blowout)
     scene.light = new Cesium.DirectionalLight({
-        direction: new Cesium.Cartesian3(0.5, -0.65, -0.55),
-        color: Cesium.Color.fromCssColorString('#fff6e8'),
-        intensity: 2.6
+        direction: new Cesium.Cartesian3(0.45, -0.65, -0.55),
+        color: Cesium.Color.fromCssColorString('#d6e4f0'),
+        intensity: 1.32
     });
     
     scene.fog.enabled = true;
-    scene.fog.density = 0.00007;
+    scene.fog.density = 0.00005;
     scene.globe.showGroundAtmosphere = true;
+
+    // Clamp zoom strictly to San Francisco city
+    const ssc = scene.screenSpaceCameraController;
+    ssc.minimumZoomDistance = 80.0;
+    ssc.maximumZoomDistance = 32000.0;
+    ssc.enableCollisionDetection = true;
+
+    if (scene.postProcessStages && scene.postProcessStages.bloom) {
+        scene.postProcessStages.bloom.enabled = false;
+    }
 }
 
 /**
- * Drives camera matrices into deep oblique isometric positioning configurations
+ * Frames the San Francisco downtown corridor immediately upon opening
  */
 function executeIsometricCameraLock() {
     viewer.camera.flyTo({
-        destination: Cesium.Cartesian3.fromDegrees(
-            CONFIG.INITIAL_VIEW.longitude,
-            CONFIG.INITIAL_VIEW.latitude,
-            CONFIG.INITIAL_VIEW.height || 750.0
-        ),
+        destination: Cesium.Cartesian3.fromDegrees(-122.4120, 37.7850, 980.0),
         orientation: {
-            heading: Cesium.Math.toRadians(CONFIG.INITIAL_VIEW.heading),
-            pitch: Cesium.Math.toRadians(CONFIG.INITIAL_VIEW.pitch),
-            roll: CONFIG.INITIAL_VIEW.roll || 0.0
+            heading: Cesium.Math.toRadians(26.0),
+            pitch: Cesium.Math.toRadians(-30.0),
+            roll: 0.0
         },
-        duration: 1.5
+        duration: 1.4
     });
 }
 
@@ -105,9 +110,23 @@ function executeIsometricCameraLock() {
  * Main Controller Loop Entry Orchestrator
  */
 async function initializationRuntimeMain() {
+    // Crash recovery
+    viewer.renderError.addEventListener((err) => {
+        console.warn("[app] WebGL render glitch recovered:", err);
+        viewer.useDefaultRenderLoop = true;
+    });
+
     await initGoogle3DTiles();
     injectCinematicEnvironmentStyle();
     executeIsometricCameraLock();
+
+    // Hook up reset button
+    const btnReset = document.getElementById("btn-reset-view");
+    if (btnReset) {
+        btnReset.addEventListener("click", () => {
+            executeIsometricCameraLock();
+        });
+    }
 
     // Instantiate & kick off the telemetry loop integration layer
     const fireTelemetryPipeline = new FireService(viewer);

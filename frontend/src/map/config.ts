@@ -1,8 +1,4 @@
-// Configuration for the 3D city map.
-//
-// Every key here is optional, matching the rest of the project: with no keys at
-// all the map still renders a real 3D San Francisco from footprints baked into
-// public/data/sf-buildings.json, so a demo can never be blocked on a quota.
+// Configuration for the 3D city map strictly focused on San Francisco.
 
 const env = import.meta.env as Record<string, string | undefined>
 
@@ -12,21 +8,29 @@ export const CONFIG = {
   /** Cesium Ion token. Unlocks world terrain + Cesium OSM Buildings. */
   cesiumIonToken: env.VITE_CESIUM_ION_TOKEN ?? '',
 
-  /** Keyless satellite imagery (the same source the old Leaflet map used). */
+  /** Keyless satellite imagery in rich dusk natural colors */
   imageryUrl: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
 
-  /** Baked San Francisco footprints, used whenever no photorealistic mesh is available. */
+  /** 10,000 real San Francisco building polygons baked into public/data/sf-buildings.json */
   buildingsUrl: '/data/sf-buildings.json',
 
-  /** Opening shot: crisp oblique isometric framing matching Image 2 architectural scale */
+  /** Opening shot: High-density San Francisco downtown corridor */
   initialView: {
     longitude: -122.4120,
     latitude: 37.7850,
-    height: 720.0,
-    pitch: -32.0,
-    heading: 28.0,
+    height: 980.0,
+    pitch: -30.0,
+    heading: 26.0,
     roll: 0.0,
-    range: 1650,
+    range: 1400,
+  },
+
+  /** San Francisco strict geographic bounding box */
+  sfBounds: {
+    west: -122.520,
+    south: 37.700,
+    east: -122.355,
+    north: 37.835,
   },
 } as const
 
@@ -34,6 +38,6 @@ export type BasemapTier = 'photorealistic' | 'ion' | 'baked'
 
 export const TIER_LABEL: Record<BasemapTier, string> = {
   photorealistic: 'Google Photorealistic 3D',
-  ion: 'Cesium OSM Buildings',
-  baked: 'OSM footprints · offline',
+  ion: 'Cesium OSM Buildings · San Francisco',
+  baked: 'San Francisco Footprints · Offline 3D',
 }

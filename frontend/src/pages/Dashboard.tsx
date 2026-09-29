@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Home, Play, Pause, SkipForward, SkipBack, X, Compass } from 'lucide-react'
+import { Home } from 'lucide-react'
 import { BayhawkProvider, useBayhawk } from '../context/BayhawkContext'
 import CityMap from '../map/CityMap'
 import { DEMO_INCIDENTS } from '../map/demoIncidents'
@@ -8,7 +8,6 @@ import { IncidentList, StatusStrip, TelemetryPanel } from '../map/overlays/Panel
 import { AnalysisBar, IncidentDetail } from '../map/overlays/Inspector'
 import FlameMark from '../map/overlays/FlameMark'
 import type { BasemapTier } from '../map/config'
-import type { CaliforniaTourController, TourStop, TourState } from '../map/californiaTour'
 import { api, type AnalyzeInput, type CameraDirectoryResponse } from '../lib/api'
 import '../map/map.css'
 
@@ -21,24 +20,8 @@ function Console() {
   const [booted, setBooted] = useState(false)
   const [cameras, setCameras] = useState<CameraDirectoryResponse['cameras']>([])
 
-  const [cameraMode, setCameraMode] = useState<'california' | 'isometric' | 'topdown' | 'cinematic'>('isometric')
+  const [cameraMode, setCameraMode] = useState<'isometric' | 'topdown' | 'cinematic'>('isometric')
   const [hudVisible, setHudVisible] = useState(true)
-
-  // Automatic California 3D Tour & Pre-rendering state
-  const [autoTour, setAutoTour] = useState(false)
-  const [tourInfo, setTourInfo] = useState<{
-    stop: TourStop
-    index: number
-    total: number
-    state: TourState
-  } | null>(null)
-  const [prerender, setPrerender] = useState<{
-    current: number
-    total: number
-    name: string
-    done: boolean
-  }>({ current: 0, total: 8, name: '', done: false })
-  const tourControllerRef = useRef<CaliforniaTourController | null>(null)
 
   // with no backend the city would be empty, which makes for a dead demo
   const simulated = !backendUp && incidents.length === 0
@@ -70,19 +53,6 @@ function Console() {
     return () => { cancelled = true }
   }, [backendUp])
 
-  const handlePrerenderProgress = useCallback((cur: number, tot: number, name: string) => {
-    setPrerender({
-      current: cur,
-      total: tot,
-      name,
-      done: cur >= tot,
-    })
-  }, [])
-
-  const handleTourChange = useCallback((stop: TourStop, index: number, total: number, state: TourState) => {
-    setTourInfo({ stop, index, total, state })
-  }, [])
-
   return (
     <div className="fwmap">
       <CityMap
@@ -93,10 +63,6 @@ function Console() {
         resetToken={resetToken}
         onReady={onReady}
         cameraMode={cameraMode}
-        autoTour={autoTour}
-        onTourChange={handleTourChange}
-        tourControllerRef={tourControllerRef}
-        onPrerenderProgress={handlePrerenderProgress}
       />
 
       {/* header */}
@@ -105,81 +71,49 @@ function Console() {
           <FlameMark size={22} />
           <span className="text-[17px] font-semibold tracking-[-0.03em]">FireWatch</span>
           <span className="fwmap-mono ml-1 rounded-full border border-[var(--line)] bg-black/40 px-2.5 py-1 text-[10px] tracking-[0.14em] text-[var(--ash-3)] backdrop-blur">
-            3D DIGITAL TWIN · NASA FIRMS
+            SAN FRANCISCO 3D TWIN · NASA FIRMS
           </span>
 
-          {/* Pre-render / Cache Status Pill */}
-          {prerender.done ? (
-            <span className="fwmap-mono hidden lg:inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-950/40 px-2.5 py-1 text-[10px] tracking-wide text-emerald-300 backdrop-blur">
+          {booted && (
+            <span className="fwmap-mono hidden sm:inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-950/40 px-2.5 py-0.5 text-[10px] tracking-wide text-emerald-300 backdrop-blur">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              CALIFORNIA 3D PRE-RENDERED (8/8)
+              SAN FRANCISCO 3D RENDERED
             </span>
-          ) : prerender.current > 0 ? (
-            <span className="fwmap-mono hidden lg:inline-flex items-center gap-1.5 rounded-full border border-orange-500/30 bg-orange-950/40 px-2.5 py-1 text-[10px] tracking-wide text-orange-300 backdrop-blur animate-pulse">
-              <span className="h-1.5 w-1.5 rounded-full bg-orange-400" />
-              PRE-RENDERING CA [{prerender.current}/{prerender.total}] · {prerender.name}
-            </span>
-          ) : null}
+          )}
         </div>
 
-        {/* Center Camera Matrix & Auto Tour Controls */}
+        {/* Center Camera Matrix Controls focused strictly on San Francisco */}
         <div className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-white/10 bg-black/70 p-1 backdrop-blur-md shadow-2xl">
           <button
-            className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium transition-all ${
-              autoTour
-                ? 'bg-gradient-to-r from-[#ff6a00] to-[#ff3b10] text-white shadow-[0_0_16px_rgba(255,90,0,0.5)]'
-                : 'text-zinc-400 hover:text-white'
-            }`}
-            onClick={() => setAutoTour(v => !v)}
-            title="Automatically fly and explore the whole state of California in 3D"
-          >
-            <Compass size={13} className={autoTour ? 'animate-spin' : ''} />
-            <span>{autoTour ? 'Auto Tour Active' : 'Auto Tour CA'}</span>
-          </button>
-
-          <div className="h-3 w-px bg-white/15 mx-0.5" />
-
-          <button
-            className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-all ${
-              cameraMode === 'california' && !autoTour
+            className={`rounded-full px-3 py-1 text-[11px] font-medium transition-all ${
+              cameraMode === 'isometric'
                 ? 'bg-[#ff5a00] text-white shadow-[0_0_12px_rgba(255,90,0,0.4)]'
                 : 'text-zinc-400 hover:text-white'
             }`}
-            onClick={() => { setAutoTour(false); setCameraMode('california') }}
-            title="Statewide 3D Topography & Wildfire Overview"
-          >
-            California 3D
-          </button>
-          <button
-            className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-all ${
-              cameraMode === 'isometric' && !autoTour
-                ? 'bg-[#ff5a00] text-white shadow-[0_0_12px_rgba(255,90,0,0.4)]'
-                : 'text-zinc-400 hover:text-white'
-            }`}
-            onClick={() => { setAutoTour(false); setCameraMode('isometric') }}
-            title="Benchmark Oblique View (SF Anchor)"
+            onClick={() => setCameraMode('isometric')}
+            title="Benchmark Oblique View (SF Downtown Anchor)"
           >
             Isometric 3D
           </button>
           <button
-            className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-all ${
-              cameraMode === 'topdown' && !autoTour
+            className={`rounded-full px-3 py-1 text-[11px] font-medium transition-all ${
+              cameraMode === 'topdown'
                 ? 'bg-[#ff5a00] text-white shadow-[0_0_12px_rgba(255,90,0,0.4)]'
                 : 'text-zinc-400 hover:text-white'
             }`}
-            onClick={() => { setAutoTour(false); setCameraMode('topdown') }}
+            onClick={() => setCameraMode('topdown')}
             title="Nadir Top-Down Satellite View"
           >
             Nadir 90°
           </button>
           <button
-            className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-all ${
-              cameraMode === 'cinematic' && !autoTour
+            className={`rounded-full px-3 py-1 text-[11px] font-medium transition-all ${
+              cameraMode === 'cinematic'
                 ? 'bg-[#ff5a00] text-white shadow-[0_0_12px_rgba(255,90,0,0.4)]'
                 : 'text-zinc-400 hover:text-white'
             }`}
-            onClick={() => { setAutoTour(false); setCameraMode('cinematic') }}
-            title="Oblique Twilight Horizon"
+            onClick={() => setCameraMode('cinematic')}
+            title="Twin Peaks Oblique Twilight Horizon"
           >
             Cinematic
           </button>
@@ -204,80 +138,8 @@ function Console() {
         </div>
       </header>
 
-      {/* Floating Autopilot Tour Controller Banner (when Auto Tour is active) */}
-      {autoTour && tourInfo && (
-        <div className="pointer-events-auto absolute top-20 inset-x-0 z-30 flex justify-center px-4">
-          <div className="flex flex-col gap-2 rounded-2xl border border-white/20 bg-[#090e18]/90 p-3.5 backdrop-blur-xl shadow-[0_12px_36px_rgba(0,0,0,0.7)] text-white w-full max-w-[560px]">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="flex h-2 w-2 rounded-full bg-[#ff6a00] animate-ping" />
-                <span className="fwmap-mono text-[10px] font-semibold uppercase tracking-wider text-[#ff9040]">
-                  AUTOPILOT · SECTOR {tourInfo.index + 1} OF {tourInfo.total}
-                </span>
-                <span className="rounded-full bg-white/10 px-2 py-0.5 text-[9px] text-zinc-300 font-mono">
-                  {tourInfo.stop.region}
-                </span>
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  className="rounded-lg p-1.5 text-zinc-400 hover:bg-white/10 hover:text-white transition"
-                  onClick={() => tourControllerRef.current?.previous()}
-                  title="Previous Sector"
-                >
-                  <SkipBack size={14} />
-                </button>
-                <button
-                  className="rounded-lg p-1.5 text-zinc-400 hover:bg-white/10 hover:text-white transition"
-                  onClick={() => {
-                    if (tourInfo.state === 'paused') {
-                      tourControllerRef.current?.resume()
-                    } else {
-                      tourControllerRef.current?.pause()
-                    }
-                  }}
-                  title={tourInfo.state === 'paused' ? 'Resume Tour' : 'Pause Tour'}
-                >
-                  {tourInfo.state === 'paused' ? <Play size={14} /> : <Pause size={14} />}
-                </button>
-                <button
-                  className="rounded-lg p-1.5 text-zinc-400 hover:bg-white/10 hover:text-white transition"
-                  onClick={() => tourControllerRef.current?.next()}
-                  title="Next Sector"
-                >
-                  <SkipForward size={14} />
-                </button>
-                <button
-                  className="rounded-lg p-1.5 text-zinc-400 hover:bg-red-500/20 hover:text-red-400 transition ml-1"
-                  onClick={() => setAutoTour(false)}
-                  title="Exit Tour"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            </div>
-
-            <div className="flex flex-col">
-              <span className="text-[14px] font-semibold text-white tracking-tight">
-                {tourInfo.stop.name}
-              </span>
-              <span className="text-[11px] text-zinc-300 line-clamp-1 leading-snug">
-                {tourInfo.stop.description}
-              </span>
-            </div>
-
-            {/* Micro tour progress bar */}
-            <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden mt-0.5">
-              <div
-                className="h-full bg-gradient-to-r from-[#ffaa00] via-[#ff6a00] to-[#ff2a00] transition-all duration-700"
-                style={{ width: `${((tourInfo.index + 1) / tourInfo.total) * 100}%` }}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* left rail */}
-      {hudVisible && !autoTour && (
+      {hudVisible && (
         <div className="pointer-events-none absolute left-5 top-[76px] z-20 flex flex-col gap-3">
           <TelemetryPanel
             status={status}
@@ -293,7 +155,7 @@ function Console() {
       )}
 
       {/* right inspector */}
-      {hudVisible && selected && !autoTour && (
+      {hudVisible && selected && (
         <div className="pointer-events-none absolute right-5 top-[76px] z-20">
           <IncidentDetail
             incident={selected}
@@ -304,8 +166,8 @@ function Console() {
         </div>
       )}
 
-      {/* bottom left legend (Blueprint specification) */}
-      {hudVisible && !autoTour && (
+      {/* bottom left legend */}
+      {hudVisible && (
         <div className="pointer-events-auto absolute bottom-7 left-5 z-20 rounded-xl border border-white/10 bg-black/70 p-3.5 backdrop-blur-md text-white text-xs max-w-[280px]">
           <div className="flex items-center justify-between mb-1.5">
             <span className="font-semibold text-[#ff6a00] tracking-wide text-[11px] uppercase">Fire Radiative Power (FRP)</span>
@@ -317,7 +179,7 @@ function Console() {
             <span>200+ MW</span>
           </div>
           <div className="mt-2 text-[10px] text-zinc-400 leading-tight">
-            Volumetric beams clamped to 3D terrain & buildings statewide.
+            Volumetric beams clamped to 3D San Francisco buildings.
           </div>
         </div>
       )}
@@ -350,8 +212,8 @@ function Console() {
             />
           </div>
           <div className="fwmap-mono mt-3 flex justify-between text-[10px] uppercase tracking-[0.18em] text-[var(--ash-3)]">
-            <span>Pre-rendering California 3D</span>
-            <span>36.77° N</span>
+            <span>Building San Francisco</span>
+            <span>37.77° N</span>
           </div>
         </div>
       </div>

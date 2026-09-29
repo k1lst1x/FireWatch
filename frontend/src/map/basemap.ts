@@ -1,73 +1,50 @@
 import * as Cesium from 'cesium'
 import { CONFIG, type BasemapTier } from './config'
 import { addBakedBuildings } from './buildings'
-import { optimizeCaliforniaRendering } from './californiaTour'
 
 /**
- * Builds the 3D digital twin for California:
+ * Builds the 3D digital twin strictly for San Francisco:
  *
- *   1. Google Photorealistic 3D Tiles (if VITE_GOOGLE_3D_TILES_KEY is provided)
- *   2. Cesium OSM Buildings with California tile optimization & architectural styling
- *   3. Baked OSM footprints (offline fallback)
+ *   1. Cesium OSM Buildings with architectural dusk styling (if Ion token available)
+ *   2. Baked San Francisco footprints (10,000 polygons, completely offline & crash-proof)
  */
 export async function buildCity(
   viewer: Cesium.Viewer,
   signal: { cancelled: boolean },
 ): Promise<BasemapTier> {
-  // Pre-configure globe terrain tile caching (3000 tiles)
-  optimizeCaliforniaRendering(viewer)
-
-  if (CONFIG.googleTilesKey) {
-    try {
-      const tileset = await Cesium.createGooglePhotorealistic3DTileset({
-        key: CONFIG.googleTilesKey,
-      })
-      if (signal.cancelled) return 'photorealistic'
-      viewer.scene.primitives.add(tileset)
-      viewer.scene.globe.show = false
-      return 'photorealistic'
-    } catch (err) {
-      console.warn('[map] photorealistic tiles unavailable, falling back', err)
-    }
-  }
-
   await addKeylessImagery(viewer)
 
-  // 2. Statewide 3D OSM Buildings (Cesium Ion)
-  try {
-    if (CONFIG.cesiumIonToken) {
+  // 1. San Francisco 3D OSM buildings with realistic architectural styling
+  if (CONFIG.cesiumIonToken) {
+    try {
       Cesium.Ion.defaultAccessToken = CONFIG.cesiumIonToken
+      const osm = await Cesium.createOsmBuildingsAsync()
+      if (signal.cancelled) return 'ion'
+      applyArchitecturalStyle(osm)
+      viewer.scene.primitives.add(osm)
+      return 'ion'
+    } catch (err) {
+      console.warn('[map] Ion OSM buildings unavailable, falling back to baked SF footprints', err)
     }
-    const osm = await Cesium.createOsmBuildingsAsync()
-    if (signal.cancelled) return 'ion'
-
-    // Configure 2048MB GPU cache & pre-loading for whole state exploration
-    optimizeCaliforniaRendering(viewer, osm)
-    applyArchitecturalStyle(osm)
-
-    viewer.scene.primitives.add(osm)
-    return 'ion'
-  } catch (err) {
-    console.warn('[map] Cesium Ion OSM buildings unavailable, falling back to baked footprints', err)
   }
 
-  // 3. Baked fallback
+  // 2. Baked San Francisco 3D building polygons (offline, lightweight & crash-proof)
   await addBakedBuildings(viewer, signal)
   return 'baked'
 }
 
-/** Apply realistic, natural architectural materials matching the reference image */
+/** Apply realistic, natural architectural materials matching the reference dusk digital twin */
 export function applyArchitecturalStyle(tileset: Cesium.Cesium3DTileset) {
   tileset.style = new Cesium.Cesium3DTileStyle({
     color: {
       conditions: [
         // High-rise glass & steel towers (> 80m) - sleek dusk slate/navy glass
-        ['${feature["cesium#estimatedHeight"]} >= 120', 'color("#3a4b5d")'],
-        ['${feature["cesium#estimatedHeight"]} >= 75', 'color("#445669")'],
-        // Commercial & civic mid-rises (35m - 75m) - refined architectural limestone & precast concrete
-        ['${feature["cesium#estimatedHeight"]} >= 40', 'color("#545a64")'],
-        ['${feature["cesium#estimatedHeight"]} >= 22', 'color("#5a6068")'],
-        // Low-rise residential & mixed use (< 22m) - warm urban masonry & matte concrete
+        ['${feature["cesium#estimatedHeight"]} >= 110', 'color("#3a4b5d")'],
+        ['${feature["cesium#estimatedHeight"]} >= 65', 'color("#445669")'],
+        // Commercial & civic mid-rises (35m - 65m) - refined architectural limestone & precast concrete
+        ['${feature["cesium#estimatedHeight"]} >= 35', 'color("#545a64")'],
+        ['${feature["cesium#estimatedHeight"]} >= 18', 'color("#5a6068")'],
+        // Low-rise residential & mixed use (< 18m) - warm urban masonry & matte concrete
         ['${feature["building"]} === "residential" || ${feature["building"]} === "apartments" || ${feature["building"]} === "house"', 'color("#58544f")'],
         ['${feature["building"]} === "commercial" || ${feature["building"]} === "office"', 'color("#4f5864")'],
         ['${feature["building"]} === "retail" || ${feature["building"]} === "supermarket"', 'color("#53555a")'],
@@ -91,9 +68,9 @@ async function addKeylessImagery(viewer: Cesium.Viewer) {
     }),
   )
   // Balanced dusk photorealism: dark charcoal asphalt roads, lush natural trees, zero blown-out water
-  layer.brightness = 0.72
+  layer.brightness = 0.74
   layer.saturation = 0.95
-  layer.contrast = 1.18
+  layer.contrast = 1.16
   layer.gamma = 0.92
 }
 
@@ -137,33 +114,21 @@ export function applyCinematicStyle(viewer: Cesium.Viewer) {
 }
 
 /**
- * Drives camera matrices into deep oblique isometric positioning configurations
+ * Frames the San Francisco downtown cluster with crisp oblique isometric positioning
  */
-export function executeIsometricCameraLock(viewer: Cesium.Viewer) {
+export function frameDowntown(viewer: Cesium.Viewer) {
   const v = CONFIG.initialView
-  try {
-    viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY)
-  } catch {
-    // safe guard
-  }
   viewer.camera.flyTo({
     destination: Cesium.Cartesian3.fromDegrees(
       v.longitude,
       v.latitude,
-      v.height ?? 1150.0,
+      v.height,
     ),
     orientation: {
       heading: Cesium.Math.toRadians(v.heading),
       pitch: Cesium.Math.toRadians(v.pitch),
-      roll: v.roll ?? 0.0,
+      roll: 0.0,
     },
-    duration: 1.8,
+    duration: 1.4,
   })
-}
-
-/**
- * Frames the downtown cluster by orbiting a target point
- */
-export function frameDowntown(viewer: Cesium.Viewer) {
-  executeIsometricCameraLock(viewer)
 }
