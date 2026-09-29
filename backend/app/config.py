@@ -23,10 +23,12 @@ def _env_float(name: str, default: float) -> float:
 
 class Settings:
     # Gateway
-    secret_key: str = os.getenv("SECRET_KEY", "change-me-before-production")
+    secret_key: str = os.getenv("SECRET_KEY", "")
     algorithm: str = os.getenv("ALGORITHM", "HS256")
     access_token_expire_minutes: int = _env_int("ACCESS_TOKEN_EXPIRE_MINUTES", 60)
-    auth_required: bool = os.getenv("AUTH_REQUIRED", "false").lower() == "true"
+    auth_required: bool = os.getenv("AUTH_REQUIRED", "true").lower() == "true"
+    admin_emails: set[str] = {email.strip().lower() for email in os.getenv("ADMIN_EMAILS", "").split(",") if email.strip()}
+    max_image_bytes: int = _env_int("MAX_IMAGE_BYTES", 8 * 1024 * 1024)
 
     # CORS
     cors_origins: list[str] = [
@@ -112,6 +114,10 @@ class Settings:
             raise ValueError("YOLO_INFERENCE_IMGSZ must be >= 32")
         if self.access_token_expire_minutes < 1:
             raise ValueError("ACCESS_TOKEN_EXPIRE_MINUTES must be >= 1")
+        if self.max_image_bytes < 1024:
+            raise ValueError("MAX_IMAGE_BYTES must be >= 1024")
+        if self.auth_required and self.secret_key in {"", "change-me-before-production", "replace-with-a-long-random-value"}:
+            raise ValueError("SECRET_KEY must be a unique non-placeholder value when authentication is enabled")
 
 
 settings = Settings()

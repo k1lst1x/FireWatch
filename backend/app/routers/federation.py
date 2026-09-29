@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Incident, IncidentStatus
 from app.db.session import get_db
+from app.dependencies import require_admin
 from app.federation.feedback import STATIONS_DIR, STATION_IDS, label_from_incident
 from app.federation.state import load_state, refresh_label_counts, reset_state
 
@@ -68,12 +69,12 @@ def _status() -> dict:
 
 
 @router.get("/status")
-async def status():
+async def status(_user=Depends(require_admin)):
     return _status()
 
 
 @router.post("/round")
-async def run_round(body: RoundRequest | None = None, db: AsyncSession = Depends(get_db)):
+async def run_round(body: RoundRequest | None = None, db: AsyncSession = Depends(get_db), _user=Depends(require_admin)):
     rounds = max(1, min((body.rounds if body else 1), 10))
     if _lock.locked():
         raise HTTPException(status_code=409, detail="A federated round is already running")
@@ -87,7 +88,7 @@ async def run_round(body: RoundRequest | None = None, db: AsyncSession = Depends
 
 
 @router.post("/reset")
-async def reset():
+async def reset(_user=Depends(require_admin)):
     if _lock.locked():
         raise HTTPException(status_code=409, detail="A federated round is running")
     reset_state()

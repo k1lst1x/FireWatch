@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Incident, IncidentStatus
 from app.db.session import get_db
-from app.dependencies import get_current_user
+from app.dependencies import require_admin, require_user
 from app.services.ai.agents.orchestrator import OrchestratorAgent
 from app.services.ai.integrations import integration_status
 from app.services.ai.schemas.pipeline import AlertEvent, ConfirmationStatus, PipelineResult
@@ -55,14 +55,14 @@ def _serialize(i: Incident) -> dict:
 
 
 @router.get("/status")
-async def pipeline_status():
+async def pipeline_status(_user=Depends(require_user)):
     return integration_status()
 
 
 @router.post("/analyze", response_model=PipelineResult, status_code=status.HTTP_200_OK)
 async def analyze(
     event: AlertEvent,
-    _user=Depends(get_current_user),
+    _user=Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ) -> PipelineResult:
     try:
@@ -80,7 +80,7 @@ async def analyze(
 @router.get("/incidents")
 async def list_incidents(
     limit: int = 50,
-    _user=Depends(get_current_user),
+    _user=Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ):
     rows = (await db.execute(select(Incident).order_by(Incident.created_at.desc()).limit(limit))).scalars().all()
@@ -91,7 +91,7 @@ async def list_incidents(
 async def review_incident(
     incident_id: str,
     body: ReviewRequest,
-    _user=Depends(get_current_user),
+    user=Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
     incident = await db.get(Incident, incident_id)
@@ -115,7 +115,7 @@ async def review_incident(
                 "alert_message": suggestion.get("alert_message"),
                 "action_plan": suggestion.get("action_plan"),
                 "recommended_resources": suggestion.get("recommended_resources"),
-                "approved_by": "dispatcher",
+                "approved_by": user.email,
             }
         )
     incident.status = IncidentStatus.APPROVED if decision == "approve" else IncidentStatus.REJECTED

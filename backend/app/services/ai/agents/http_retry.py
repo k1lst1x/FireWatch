@@ -3,6 +3,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import ipaddress
+import socket
+from urllib.parse import urlparse
 from typing import Any
 
 import httpx
@@ -76,9 +79,14 @@ async def httpx_get_bytes(
     timeout: float = 20.0,
     max_attempts: int = 3,
     follow_redirects: bool = True,
+    max_bytes: int | None = None,
+    allow_public_url: bool = False,
     label: str = "http_bytes",
 ) -> bytes:
     """GET raw body (e.g. camera image); same retry policy as ``httpx_get_json``."""
+    if allow_public_url:
+        _validate_public_https_url(url)
+        follow_redirects = False
     last_error: BaseException | None = None
     for attempt in range(1, max_attempts + 1):
         try:
@@ -97,6 +105,16 @@ async def httpx_get_bytes(
                     await asyncio.sleep(delay)
                     continue
                 resp.raise_for_status()
+                if max_bytes is not None:
+                    length = resp.headers.get("content-length")
+                    if length and int(length) > max_bytes:
+                        raise ValueError("image exceeds maximum size")
+                    body = bytearray()
+                    async for chunk in resp.aiter_bytes():
+                        body.extend(chunk)
+                        if len(body) > max_bytes:
+                            raise ValueError("image exceeds maximum size")
+                    return bytes(body)
                 return resp.content
         except httpx.TimeoutException as exc:
             last_error = exc
@@ -122,3 +140,17 @@ async def httpx_get_bytes(
 
 def _backoff_seconds(attempt: int) -> float:
     return min(0.4 * (2 ** (attempt - 1)), 6.0)
+
+
+def _validate_public_https_url(url: str) -> None:
+    parsed = urlparse(url)
+    if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
+        raise ValueError("image URL must be an HTTPS URL without credentials")
+    try:
+        addresses = {item[4][0] for item in socket.getaddrinfo(parsed.hostname, parsed.port or 443, type=socket.SOCK_STREAM)}
+    except OSError as exc:
+        raise ValueError("image URL hostname could not be resolved") from exc
+    for address in addresses:
+        ip = ipaddress.ip_address(address)
+        if not ip.is_global:
+            raise ValueError("image URL must resolve only to public addresses")

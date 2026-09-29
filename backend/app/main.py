@@ -13,6 +13,8 @@ from app.routers.ai import router as ai_router
 from app.routers.auth import router as auth_router
 from app.routers.federation import router as federation_router
 from app.services.ai.integrations import integration_status
+from app.dependencies import require_user
+from fastapi import Depends
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -48,7 +50,7 @@ app.mount("/demo_images", StaticFiles(directory=_DEMO_DIR), name="demo_images")
 
 
 @app.get("/ai/demo-images")
-async def demo_images():
+async def demo_images(_user=Depends(require_user)):
     exts = {".jpg", ".jpeg", ".png", ".webp"}
     return sorted(f"demo_images/{p.name}" for p in _DEMO_DIR.iterdir() if p.suffix.lower() in exts)
 

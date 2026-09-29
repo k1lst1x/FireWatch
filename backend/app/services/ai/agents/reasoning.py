@@ -109,8 +109,9 @@ class ReasoningAgent(BaseAgent):
                 data = await load_image_bytes(image_url)
                 prompt.insert(0, BinaryContent(data=data, media_type=media_type_for(image_url, data)))
             except Exception:
-                if image_url.startswith(("http://", "https://")):
-                    prompt.insert(0, ImageUrl(url=image_url))
+                # Never hand a caller-provided URL to a model provider as a fallback:
+                # it would bypass the URL validation in load_image_bytes().
+                pass
         out, source = await run_or_fallback(
             self.name,
             _agent,

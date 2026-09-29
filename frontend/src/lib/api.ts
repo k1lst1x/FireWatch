@@ -47,9 +47,10 @@ export interface AnalyzeInput {
 }
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = sessionStorage.getItem('firewatch-token')
   const res = await fetch(`/api${path}`, {
     ...init,
-    headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(init?.headers ?? {}) },
   })
   if (!res.ok) {
     let detail = res.statusText
@@ -64,6 +65,8 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  login: (email: string, password: string) => call<{ access_token: string }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+  register: (email: string, password: string) => call<{ access_token: string }>('/auth/register', { method: 'POST', body: JSON.stringify({ email, password }) }),
   status: () => call<PipelineStatus>('/ai/status'),
   incidents: () => call<Incident[]>('/ai/incidents'),
   demoImages: () => call<string[]>('/ai/demo-images'),

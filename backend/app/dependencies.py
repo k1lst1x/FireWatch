@@ -11,7 +11,7 @@ from app.config import settings
 from app.core.auth import decode_token
 from app.db.session import get_db
 #theSQLAlchemy User model - the  python class that maps to the users table. We need it here to look up the user by ID and also as the return type of the function
-from app.db.models import User
+from app.db.models import User, UserRole
 
 #called outside the function, so it's created once and reused across all requests.
 #it's created once and reused across all requests. -> This instance does one job: when FastAPI calls it as a dependency, it reads the Authorization header from the request and returns a credential object.
@@ -43,4 +43,10 @@ async def get_current_user(
 async def require_user(user: User | None = Depends(get_current_user)) -> User:
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token")
+    return user
+
+
+async def require_admin(user: User = Depends(require_user)) -> User:
+    if user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Administrator role required")
     return user
