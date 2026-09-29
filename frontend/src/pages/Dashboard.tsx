@@ -9,7 +9,7 @@ import { AnalysisBar, IncidentDetail } from '../map/overlays/Inspector'
 import FlameMark from '../map/overlays/FlameMark'
 import type { BasemapTier } from '../map/config'
 import { api, type AnalyzeInput, type CameraDirectoryResponse } from '../lib/api'
-import { CALIFORNIA_REALTIME_CAMERAS, type LiveCameraFeed } from '../map/cameraDirectory'
+import { CALIFORNIA_REALTIME_CAMERAS, calculateDistanceKm, type LiveCameraFeed } from '../map/cameraDirectory'
 import LiveVideoModal from '../map/overlays/LiveVideoModal'
 import LiveWeatherWidget from '../map/overlays/LiveWeatherWidget'
 import {
@@ -108,11 +108,29 @@ function Console() {
 
   const handleCameraSelect = useCallback((cam: any) => {
     if (!cam) return
+    const matched = CALIFORNIA_REALTIME_CAMERAS.find(c => c.id === cam.id)
+    const dist = cam.distance_km ?? (cam.lat && cam.lon ? calculateDistanceKm(37.7749, -122.4194, cam.lat, cam.lon) : 0)
+    const full: LiveCameraFeed = {
+      id: cam.id,
+      name: cam.name || `Station ${cam.id}`,
+      lat: cam.lat ?? 37.7749,
+      lon: cam.lon ?? -122.4194,
+      distance_km: Math.round(dist * 10) / 10,
+      resolution: cam.resolution || 'Real-Time DOT Feed',
+      fps: cam.fps || 2,
+      network: cam.network || 'Caltrans & California Real-Time Optical Network',
+      status: 'ONLINE',
+      stream_type: 'live_cctv',
+      live_cctv_url: cam.live_cctv_url || cam.image_url,
+      image_url: cam.image_url || cam.live_cctv_url,
+      video_url: cam.video_url || '',
+      category: cam.category || 'caltrans',
+      ...matched,
+    }
     setSelectedCameraId(cam.id)
-    const full = CALIFORNIA_REALTIME_CAMERAS.find(c => c.id === cam.id) || (cam as LiveCameraFeed)
     setVideoModalCamera(full)
     // Automatically query real-time weather at the camera's location
-    syncTelemetry(cam.lat, cam.lon, `Camera: ${cam.name}`)
+    syncTelemetry(full.lat, full.lon, `Camera: ${full.name}`)
   }, [syncTelemetry])
 
   const handleIncidentSelect = useCallback((id: string | null) => {
@@ -135,7 +153,15 @@ function Console() {
       api.cameraDirectory()
         .then(({ cameras: directory }) => {
           if (!cancelled && directory && directory.length > 0) {
-            setCameras(directory)
+            // Keep California cameras within bounds and cap to top 60 to prevent WebGL/browser freeze
+            const caCams = directory.filter(c =>
+              c.lat >= 32.5 && c.lat <= 42.0 && c.lon >= -124.5 && c.lon <= -114.0
+            )
+            const merged = [
+              ...CALIFORNIA_REALTIME_CAMERAS,
+              ...caCams.filter(c => !CALIFORNIA_REALTIME_CAMERAS.some(k => k.id === c.id)),
+            ].slice(0, 60)
+            setCameras(merged)
           }
         })
         .catch(() => {
@@ -321,7 +347,18 @@ function Console() {
           camera={videoModalCamera}
           onClose={() => setVideoModalCamera(null)}
           onFlyTo={cam => setSelectedCameraId(cam.id)}
-          allCameras={CALIFORNIA_REALTIME_CAMERAS}
+          allCameras={cameras.map(c => CALIFORNIA_REALTIME_CAMERAS.find(k => k.id === c.id) || ({
+            ...c,
+            distance_km: Math.round(calculateDistanceKm(37.7749, -122.4194, c.lat, c.lon) * 10) / 10,
+            resolution: 'Real-Time DOT Feed',
+            fps: 2,
+            network: 'Caltrans District 4 Real-Time Traffic CCTV',
+            status: 'ONLINE',
+            stream_type: 'live_cctv',
+            live_cctv_url: c.image_url,
+            video_url: '',
+            category: 'caltrans',
+          } as LiveCameraFeed))}
           onSelectCamera={cam => {
             setVideoModalCamera(cam)
             setSelectedCameraId(cam.id)

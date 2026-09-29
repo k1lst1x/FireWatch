@@ -96,23 +96,27 @@ export default function CityMap({
     // Click handler for hotspot columns, badges, and camera stations
     const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas)
     handler.setInputAction((click: { position: Cesium.Cartesian2 }) => {
-      const picked = viewer.scene.pick(click.position)
-      const id = picked?.id?.id
-      if (typeof id === 'string') {
-        if (id.startsWith('fire:') || id.startsWith('label:')) {
-          selectRef.current(id.slice(id.indexOf(':') + 1))
-          return
-        }
-        if (id.startsWith('camera:')) {
-          const camId = id.slice(id.indexOf(':') + 1)
-          const cam = camerasRef.current.find(c => c.id === camId)
-          if (cam && onSelectCameraRef.current) {
-            onSelectCameraRef.current(cam)
+      try {
+        const picked = viewer.scene.pick(click.position)
+        const id = picked?.id?.id
+        if (typeof id === 'string') {
+          if (id.startsWith('fire:') || id.startsWith('label:')) {
+            selectRef.current(id.slice(id.indexOf(':') + 1))
+            return
           }
-          return
+          if (id.startsWith('camera:')) {
+            const camId = id.slice(id.indexOf(':') + 1)
+            const cam = camerasRef.current.find(c => c.id === camId)
+            if (cam && onSelectCameraRef.current) {
+              onSelectCameraRef.current(cam)
+            }
+            return
+          }
         }
+        selectRef.current(null)
+      } catch (err) {
+        console.warn('[map] pick handler error gracefully caught:', err)
       }
-      selectRef.current(null)
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK)
 
     // Build the 3D city immediately upon opening
@@ -174,16 +178,20 @@ export default function CityMap({
     const viewer = viewerRef.current
     if (!viewer || !ready || !selectedCameraId) return
     const cam = cameras.find(c => c.id === selectedCameraId)
-    if (!cam) return
-    viewer.camera.flyTo({
-      destination: Cesium.Cartesian3.fromDegrees(cam.lon, cam.lat - 0.005, 500),
-      orientation: {
-        heading: Cesium.Math.toRadians(0),
-        pitch: Cesium.Math.toRadians(-22),
-        roll: 0,
-      },
-      duration: 1.4,
-    })
+    if (!cam || !Number.isFinite(cam.lat) || !Number.isFinite(cam.lon)) return
+    try {
+      viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(cam.lon, cam.lat - 0.005, 800),
+        orientation: {
+          heading: Cesium.Math.toRadians(0),
+          pitch: Cesium.Math.toRadians(-22),
+          roll: 0,
+        },
+        duration: 1.2,
+      })
+    } catch (err) {
+      console.warn('[map] flyTo camera failed gracefully:', err)
+    }
   }, [selectedCameraId, cameras, ready])
 
   // --- reset view

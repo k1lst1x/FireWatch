@@ -13,7 +13,7 @@ import {
   X,
   Zap,
 } from 'lucide-react'
-import type { LiveCameraFeed } from '../cameraDirectory'
+import { calculateDistanceKm, type LiveCameraFeed } from '../cameraDirectory'
 import { fetchLiveWeather, type RealtimeWeather } from '../../services/liveFeedService'
 
 interface Props {
@@ -108,9 +108,18 @@ export default function LiveVideoModal({
 
   if (!camera) return null
 
-  const currentIndex = allCameras.findIndex(c => c.id === camera.id)
-  const prevCamera = currentIndex > 0 ? allCameras[currentIndex - 1] : allCameras[allCameras.length - 1]
-  const nextCamera = currentIndex < allCameras.length - 1 ? allCameras[currentIndex + 1] : allCameras[0]
+  const safeCameras = allCameras && allCameras.length > 0 ? allCameras : [camera]
+  const rawIndex = safeCameras.findIndex(c => c.id === camera.id)
+  const currentIndex = rawIndex >= 0 ? rawIndex : 0
+  const prevCamera = safeCameras[(currentIndex - 1 + safeCameras.length) % safeCameras.length]
+  const nextCamera = safeCameras[(currentIndex + 1) % safeCameras.length]
+
+  const distKm = camera.distance_km != null
+    ? camera.distance_km
+    : (camera.lat != null && camera.lon != null ? calculateDistanceKm(37.7749, -122.4194, camera.lat, camera.lon) : 0)
+  const distFormatted = `${distKm.toFixed(1)} km`
+  const latFormatted = camera.lat != null ? camera.lat.toFixed(4) : '37.7749'
+  const lonFormatted = camera.lon != null ? camera.lon.toFixed(4) : '-122.4194'
 
   // Filter CSS styles
   const filterStyles: Record<VisionFilter, string> = {
@@ -122,7 +131,7 @@ export default function LiveVideoModal({
 
   const cctvUrl = camera.live_cctv_url
     ? `${camera.live_cctv_url}?_t=${frameTimestamp}`
-    : camera.image_url
+    : (camera.image_url || '')
 
   return (
     <div
@@ -156,11 +165,11 @@ export default function LiveVideoModal({
                 )}
               </div>
               <div className="fwmap-mono flex items-center gap-2 text-[10px] text-zinc-400">
-                <span>{camera.network}</span>
+                <span>{camera.network || 'Caltrans District 4 Real-Time Traffic CCTV'}</span>
                 <span>•</span>
                 <span className="text-emerald-400 font-bold">100% REAL-TIME LIVE DATA</span>
                 <span>•</span>
-                <span>{camera.distance_km.toFixed(1)} km away</span>
+                <span>{distFormatted} away</span>
               </div>
             </div>
           </div>
@@ -321,12 +330,12 @@ export default function LiveVideoModal({
               <div className="flex items-center justify-between text-[11px] font-mono text-zinc-300">
                 <span className="flex items-center gap-1.5">
                   <Globe size={13} className="text-emerald-400" />
-                  COORD: {camera.lat.toFixed(4)}°N, {camera.lon.toFixed(4)}°W
-                  {camera.elevation_m ? ` • ELEV: ${camera.elevation_m}m` : ''}
-                  {camera.azimuth ? ` • AZ: ${camera.azimuth}°` : ''}
+                  COORD: {latFormatted}°N, {lonFormatted}°W
+                  {camera.elevation_m != null ? ` • ELEV: ${camera.elevation_m}m` : ''}
+                  {camera.azimuth != null ? ` • AZ: ${camera.azimuth}°` : ''}
                 </span>
                 <span className="font-semibold text-amber-400">
-                  {camera.distance_km.toFixed(1)} km FROM BASE
+                  {distFormatted} FROM BASE
                 </span>
               </div>
             </div>
@@ -347,7 +356,7 @@ export default function LiveVideoModal({
               <span className="hidden sm:inline">Prev</span>
             </button>
             <span className="font-mono text-[10px] text-zinc-400">
-              {currentIndex + 1} / {allCameras.length}
+              {currentIndex + 1} / {safeCameras.length}
             </span>
             <button
               type="button"
