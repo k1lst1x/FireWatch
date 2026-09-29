@@ -19,6 +19,21 @@ from app.services.ai.schemas.pipeline import AlertEvent, ConfirmationStatus, Pip
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
+
+_AGENT_CATALOG = (
+    ("orchestrator", "Orchestrator", "Coordinates the full evidence-to-dispatch workflow."),
+    ("camera", "Camera agent", "Retrieves the selected live camera frame and checks it for smoke or flame."),
+    ("satellite", "Satellite agent", "Checks NASA FIRMS thermal hotspots around the selected location."),
+    ("weather", "Weather agent", "Reads wind and humidity to calculate local fire-spread risk."),
+    ("fusion", "Fusion agent", "Combines optical and thermal evidence into a confirmation decision."),
+    ("reasoning", "Reasoning agent", "Explains what the evidence shows in operational language."),
+    ("classification", "Classification agent", "Assigns the incident severity level and confidence."),
+    ("deliberation", "Deliberation agent", "Collects independent configured-model opinions as advisory input."),
+    ("suggestion", "Response planner", "Builds the recommended response plan and dispatch message."),
+    ("output", "Output agent", "Creates the incident record and holds it for human approval."),
+)
+
+
 class ReviewRequest(BaseModel):
     decision: str
     note: str | None = None
@@ -58,6 +73,125 @@ def _serialize(i: Incident) -> dict:
 @router.get("/status")
 async def pipeline_status(_user=Depends(require_user)):
     return integration_status()
+
+
+@router.get("/agent-trace")
+async def agent_trace(
+    _user=Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the safe, human-readable trace for the most recent pipeline run.
+
+    Raw model prompts, request headers, credentials, and camera payloads are
+    deliberately excluded.  This endpoint is intended for the dispatch-console
+    trace panel, not for exporting sensitive diagnostic data.
+    """
+    latest = (
+        await db.execute(select(Incident).order_by(Incident.created_at.desc()).limit(1))
+    ).scalar_one_or_none()
+    result = (latest.result or {}) if latest else {}
+    integrations = integration_status()["integrations"]
+    llm = integrations["llm"]
+
+    def completed(key: str) -> bool:
+        return bool(result.get(key))
+
+    def stage(key: str, summary: str, *, latency: float | None = None, mode: str | None = None) -> dict:
+        state = "completed" if completed(key) else "idle"
+        return {
+            "id": key,
+            "state": state,
+            "summary": summary if state == "completed" else "Waiting for the next analysis run.",
+            "latency_ms": latency,
+            "mode": mode,
+        }
+
+    camera = result.get("camera") or {}
+    satellite = result.get("satellite") or {}
+    weather = result.get("weather") or {}
+    fusion = result.get("fusion") or {}
+    reasoning = result.get("reasoning") or {}
+    classification = result.get("classification") or {}
+    deliberation = result.get("deliberation") or {}
+    suggestion = result.get("suggestion") or {}
+    output = result.get("output") or {}
+
+    trace = {
+        "orchestrator": {
+            "id": "orchestrator",
+            "state": "completed" if latest else "idle",
+            "summary": (
+                f"Completed event {latest.event_id}."
+                if latest else "Waiting for the next analysis run."
+            ),
+            "latency_ms": None,
+            "mode": "parallel collection → evidence fusion → human review",
+        },
+        "camera": stage(
+            "camera",
+            f"Detection confidence {round(float(camera.get('confidence', 0)) * 100)}%. "
+            f"{'Potential smoke or flame detected.' if camera.get('detected') else 'No positive optical detection.'}",
+            latency=camera.get("latency_ms"),
+            mode=(camera.get("telemetry") or {}).get("detector") or integrations["camera_detector"].get("detector"),
+        ),
+        "satellite": stage(
+            "satellite",
+            f"Thermal confidence {round(float(satellite.get('thermal_confidence', 0)) * 100)}%. "
+            f"{'FIRMS hotspot detected.' if satellite.get('hotspot_detected') else 'No FIRMS hotspot detected.'}",
+            latency=satellite.get("latency_ms"),
+            mode=integrations["satellite_firms"].get("source"),
+        ),
+        "weather": stage(
+            "weather",
+            f"Wind {float(weather.get('wind_speed', 0)):.1f} m/s · humidity {round(float(weather.get('humidity', 0)))}% · "
+            f"spread risk {round(float(weather.get('spread_risk', 0)) * 100)}%.",
+            latency=weather.get("latency_ms"),
+            mode=(weather.get("telemetry") or {}).get("provider") or integrations["weather"].get("provider"),
+        ),
+        "fusion": stage(
+            "fusion",
+            f"{fusion.get('status', 'UNKNOWN')} at {float(fusion.get('combined_score', 0)):.2f} combined confidence.",
+            mode="weighted optical + thermal evidence",
+        ),
+        "reasoning": stage(
+            "reasoning",
+            reasoning.get("scene_description", "Evidence interpretation completed."),
+            mode=reasoning.get("source") or (llm.get("provider") if llm.get("live") else "rule-based fallback"),
+        ),
+        "classification": stage(
+            "classification",
+            f"{classification.get('criticality', 'UNKNOWN')} severity at {round(float(classification.get('score', 0)) * 100)}% confidence.",
+            mode=classification.get("source") or (llm.get("provider") if llm.get("live") else "rule-based fallback"),
+        ),
+        "deliberation": stage(
+            "deliberation",
+            f"{len(deliberation.get('opinions') or [])} independent advisory opinion(s); "
+            f"consensus: {deliberation.get('consensus_criticality') or 'not available'}.",
+            mode="configured multi-agent reviewers",
+        ),
+        "suggestion": stage(
+            "suggestion",
+            suggestion.get("alert_message", "Response plan completed."),
+            mode=suggestion.get("source") or (llm.get("provider") if llm.get("live") else "rule-based fallback"),
+        ),
+        "output": stage(
+            "output",
+            f"Incident {output.get('incident_id', 'record')} is {str(output.get('review_status') or 'awaiting human approval').replace('_', ' ')}.",
+            mode="human-in-the-loop dispatch gate",
+        ),
+    }
+    return {
+        "event_id": latest.event_id if latest else None,
+        "created_at": latest.created_at.isoformat() if latest and latest.created_at else None,
+        "agents": [
+            {
+                **trace[agent_id],
+                "name": name,
+                "responsibility": responsibility,
+            }
+            for agent_id, name, responsibility in _AGENT_CATALOG
+        ],
+    }
 
 
 @router.get("/telemetry/live-weather")

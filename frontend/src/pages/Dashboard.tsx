@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Home, Settings as SettingsIcon } from 'lucide-react'
+import { Home, ScrollText, Settings as SettingsIcon } from 'lucide-react'
 import { BayhawkProvider, useBayhawk } from '../context/BayhawkContext'
 import CityMap from '../map/CityMap'
 import { DEMO_INCIDENTS } from '../map/demoIncidents'
@@ -8,10 +8,11 @@ import { IncidentList, StatusStrip, TelemetryPanel } from '../map/overlays/Panel
 import { AnalysisBar, IncidentDetail, CameraStationDetail } from '../map/overlays/Inspector'
 import FlameMark from '../map/overlays/FlameMark'
 import type { BasemapTier } from '../map/config'
-import { api, type AnalyzeInput, type CameraDirectoryResponse } from '../lib/api'
+import { api, type AgentTraceResponse, type AnalyzeInput, type CameraDirectoryResponse } from '../lib/api'
 import { CALIFORNIA_REALTIME_CAMERAS, calculateDistanceKm, type LiveCameraFeed } from '../map/cameraDirectory'
 import LiveVideoModal from '../map/overlays/LiveVideoModal'
 import LiveWeatherWidget from '../map/overlays/LiveWeatherWidget'
+import AgentTracePanel from '../map/overlays/AgentTracePanel'
 import {
   fetchLiveWeather,
   fetchNasaHotspots,
@@ -34,6 +35,10 @@ function Console() {
 
   const [cameraMode, setCameraMode] = useState<'isometric' | 'topdown' | 'cinematic'>('isometric')
   const [hudVisible, setHudVisible] = useState(true)
+  const [logsOpen, setLogsOpen] = useState(false)
+  const [agentTrace, setAgentTrace] = useState<AgentTraceResponse | null>(null)
+  const [traceLoading, setTraceLoading] = useState(false)
+  const [traceError, setTraceError] = useState<string | null>(null)
 
   // Real-time Weather API & NASA Satellite State
   const [weather, setWeather] = useState<RealtimeWeather | null>(null)
@@ -101,10 +106,22 @@ function Console() {
     setBooted(true)
   }, [])
 
-  const onRun = useCallback(
-    (input: AnalyzeInput) => analyze(input),
-    [analyze],
-  )
+  const loadAgentTrace = useCallback(async () => {
+    setTraceLoading(true)
+    setTraceError(null)
+    try {
+      setAgentTrace(await api.agentTrace())
+    } catch (err) {
+      setTraceError((err as Error).message)
+    } finally {
+      setTraceLoading(false)
+    }
+  }, [])
+
+  const onRun = useCallback(async (input: AnalyzeInput) => {
+    await analyze(input)
+    if (logsOpen) void loadAgentTrace()
+  }, [analyze, loadAgentTrace, logsOpen])
 
   const handleCameraSelect = useCallback((cam: any) => {
     if (!cam) return
@@ -275,6 +292,13 @@ function Console() {
             {hudVisible ? 'Hide HUD' : 'Show HUD'}
           </button>
           <button
+            className="fwmap-btn fwmap-btn--ghost !px-3 !py-1.5 text-[11px]"
+            onClick={() => { setLogsOpen(true); void loadAgentTrace() }}
+            title="Show backend agent trace"
+          >
+            <ScrollText size={13} /> Logs
+          </button>
+          <button
             className="fwmap-btn fwmap-btn--ghost !px-3 !py-2"
             onClick={() => navigate('/settings')}
             aria-label="Open system settings"
@@ -307,6 +331,16 @@ function Console() {
           />
           <IncidentList incidents={shown} selectedId={selectedId} onSelect={handleIncidentSelect} />
         </div>
+      )}
+
+      {logsOpen && (
+        <AgentTracePanel
+          trace={agentTrace}
+          loading={traceLoading}
+          error={traceError}
+          onClose={() => setLogsOpen(false)}
+          onRefresh={() => void loadAgentTrace()}
+        />
       )}
 
       {/* right rail: real-time live weather widget + incident detail */}

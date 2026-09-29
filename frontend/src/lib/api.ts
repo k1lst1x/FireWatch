@@ -77,6 +77,22 @@ export interface CameraDirectoryResponse {
   cameras: Array<Omit<NearbyCamera, 'distance_km'>>
 }
 
+export interface AgentTraceEntry {
+  id: string
+  name: string
+  responsibility: string
+  state: 'idle' | 'completed'
+  summary: string
+  latency_ms: number | null
+  mode: string | null
+}
+
+export interface AgentTraceResponse {
+  event_id: string | null
+  created_at: string | null
+  agents: AgentTraceEntry[]
+}
+
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
     ...init,
@@ -96,6 +112,7 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   status: () => call<PipelineStatus>('/ai/status'),
+  agentTrace: () => call<AgentTraceResponse>('/ai/agent-trace'),
   incidents: () => call<Incident[]>('/ai/incidents'),
   demoImages: () => call<string[]>('/ai/demo-images'),
   cameraDirectory: () => call<CameraDirectoryResponse>('/ai/cameras'),
