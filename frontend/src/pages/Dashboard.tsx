@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Home, ScrollText, Settings as SettingsIcon } from 'lucide-react'
+import { Home, Network, ScrollText, Settings as SettingsIcon } from 'lucide-react'
 import { BayhawkProvider, useBayhawk } from '../context/BayhawkContext'
 import CityMap from '../map/CityMap'
 import { DEMO_INCIDENTS } from '../map/demoIncidents'
@@ -8,11 +8,12 @@ import { IncidentList, StatusStrip, TelemetryPanel } from '../map/overlays/Panel
 import { AnalysisBar, IncidentDetail, CameraStationDetail } from '../map/overlays/Inspector'
 import FlameMark from '../map/overlays/FlameMark'
 import type { BasemapTier } from '../map/config'
-import { api, type AgentTraceResponse, type AnalyzeInput, type CameraDirectoryResponse } from '../lib/api'
+import { api, type AgentTraceResponse, type AnalyzeInput, type CameraDirectoryResponse, type FederationStatus } from '../lib/api'
 import { CALIFORNIA_REALTIME_CAMERAS, calculateDistanceKm, type LiveCameraFeed } from '../map/cameraDirectory'
 import LiveVideoModal from '../map/overlays/LiveVideoModal'
 import LiveWeatherWidget from '../map/overlays/LiveWeatherWidget'
 import AgentTracePanel from '../map/overlays/AgentTracePanel'
+import FederationPanel from '../map/overlays/FederationPanel'
 import {
   fetchLiveWeather,
   fetchNasaHotspots,
@@ -39,6 +40,11 @@ function Console() {
   const [agentTrace, setAgentTrace] = useState<AgentTraceResponse | null>(null)
   const [traceLoading, setTraceLoading] = useState(false)
   const [traceError, setTraceError] = useState<string | null>(null)
+  const [federationOpen, setFederationOpen] = useState(false)
+  const [federationStatus, setFederationStatus] = useState<FederationStatus | null>(null)
+  const [federationLoading, setFederationLoading] = useState(false)
+  const [federationRunning, setFederationRunning] = useState(false)
+  const [federationError, setFederationError] = useState<string | null>(null)
 
   // Real-time Weather API & NASA Satellite State
   const [weather, setWeather] = useState<RealtimeWeather | null>(null)
@@ -115,6 +121,30 @@ function Console() {
       setTraceError((err as Error).message)
     } finally {
       setTraceLoading(false)
+    }
+  }, [])
+
+  const loadFederationStatus = useCallback(async () => {
+    setFederationLoading(true)
+    setFederationError(null)
+    try {
+      setFederationStatus(await api.federationStatus())
+    } catch (err) {
+      setFederationError((err as Error).message)
+    } finally {
+      setFederationLoading(false)
+    }
+  }, [])
+
+  const runFederationRound = useCallback(async () => {
+    setFederationRunning(true)
+    setFederationError(null)
+    try {
+      setFederationStatus(await api.runFederationRound())
+    } catch (err) {
+      setFederationError((err as Error).message)
+    } finally {
+      setFederationRunning(false)
     }
   }, [])
 
@@ -293,10 +323,17 @@ function Console() {
           </button>
           <button
             className="fwmap-btn fwmap-btn--ghost !px-3 !py-1.5 text-[11px]"
-            onClick={() => { setLogsOpen(true); void loadAgentTrace() }}
+            onClick={() => { setFederationOpen(false); setLogsOpen(true); void loadAgentTrace() }}
             title="Show backend agent trace"
           >
             <ScrollText size={13} /> Logs
+          </button>
+          <button
+            className="fwmap-btn fwmap-btn--ghost !px-3 !py-1.5 text-[11px]"
+            onClick={() => { setLogsOpen(false); setFederationOpen(true); void loadFederationStatus() }}
+            title="Show live Flower federation views"
+          >
+            <Network size={13} /> Federation views
           </button>
           <button
             className="fwmap-btn fwmap-btn--ghost !px-3 !py-2"
@@ -340,6 +377,18 @@ function Console() {
           error={traceError}
           onClose={() => setLogsOpen(false)}
           onRefresh={() => void loadAgentTrace()}
+        />
+      )}
+
+      {federationOpen && (
+        <FederationPanel
+          status={federationStatus}
+          loading={federationLoading}
+          running={federationRunning}
+          error={federationError}
+          onClose={() => setFederationOpen(false)}
+          onRefresh={() => void loadFederationStatus()}
+          onRunRound={() => void runFederationRound()}
         />
       )}
 
