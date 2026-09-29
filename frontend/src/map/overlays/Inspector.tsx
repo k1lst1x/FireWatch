@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import {
-  Brain, Camera, Check, ClipboardList, CloudSun, GitMerge, Play, Satellite, Siren, UserCheck, X,
+  Brain, Camera, Check, ChevronDown, ClipboardList, CloudSun, GitMerge, MapPin, Play, Radio, Satellite, Siren, UserCheck, X,
 } from 'lucide-react'
-import { CRIT_COLOR, api, imageSrc, type Incident, type PipelineResult } from '../../lib/api'
+import { CRIT_COLOR, api, imageSrc, type AnalyzeInput, type Incident, type NearbyCamera, type PipelineResult } from '../../lib/api'
 
 const PRESETS: { label: string; lat: number; lon: number }[] = [
   { label: 'San Francisco', lat: 37.7749, lon: -122.4194 },
@@ -10,28 +10,72 @@ const PRESETS: { label: string; lat: number; lon: number }[] = [
   { label: 'Tahoe camera', lat: 38.9, lon: -120.0 },
 ]
 
-/** Bottom-centre control: pick a point, optionally a demo image, run the agents. */
+/** Bottom-centre control: pick a point, choose a nearby live camera, run the agents. */
 export function AnalysisBar({
   running,
   onRun,
 }: {
   running: boolean
-  onRun: (lat: number, lon: number, imageUrl?: string) => void
+  onRun: (input: AnalyzeInput) => void
 }) {
   const [lat, setLat] = useState('37.7749')
   const [lon, setLon] = useState('-122.4194')
-  const [images, setImages] = useState<string[]>([])
-  const [image, setImage] = useState('')
+  const [cameras, setCameras] = useState<NearbyCamera[]>([])
+  const [selectedCamera, setSelectedCamera] = useState<NearbyCamera | null>(null)
+  const [cameraOpen, setCameraOpen] = useState(false)
+  const [cameraLoading, setCameraLoading] = useState(false)
+  const [cameraError, setCameraError] = useState<string | null>(null)
 
   useEffect(() => {
-    api.demoImages().then(setImages).catch(() => setImages([]))
-  }, [])
+    const la = Number(lat)
+    const lo = Number(lon)
+    if (!Number.isFinite(la) || !Number.isFinite(lo)) {
+      setCameras([])
+      setCameraError('Enter valid coordinates to find cameras')
+      return
+    }
+
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      setCameraLoading(true)
+      setCameraError(null)
+      api.nearbyCameras(la, lo)
+        .then(({ cameras: nearby }) => {
+          if (cancelled) return
+          setCameras(nearby)
+          if (nearby.length === 0) setCameraError('No live cameras found within range')
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setCameras([])
+            setCameraError('Live camera directory is unavailable')
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setCameraLoading(false)
+        })
+    }, 300)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [lat, lon])
+
+  useEffect(() => {
+    setSelectedCamera(null)
+  }, [lat, lon])
 
   const submit = () => {
     const la = parseFloat(lat)
     const lo = parseFloat(lon)
     if (Number.isNaN(la) || Number.isNaN(lo)) return
-    onRun(la, lo, image || undefined)
+    onRun({
+      lat: la,
+      lon: lo,
+      image_url: selectedCamera?.image_url,
+      camera_id: selectedCamera?.id,
+    })
   }
 
   return (
@@ -52,17 +96,71 @@ export function AnalysisBar({
       <input className="fwmap-input w-[104px]" value={lat} onChange={e => setLat(e.target.value)} aria-label="Latitude" />
       <input className="fwmap-input w-[104px]" value={lon} onChange={e => setLon(e.target.value)} aria-label="Longitude" />
 
-      <select
-        className="fwmap-input max-w-[220px] cursor-pointer"
-        value={image}
-        onChange={e => setImage(e.target.value)}
-        aria-label="Image source"
-      >
-        <option value="">Nearest live camera</option>
-        {images.map(src => (
-          <option key={src} value={src}>{src.split('/').pop()}</option>
-        ))}
-      </select>
+      <div className="relative">
+        <button
+          type="button"
+          className="fwmap-input flex min-w-[220px] max-w-[260px] items-center gap-2 text-left transition-colors hover:border-[var(--flame)]"
+          onClick={() => setCameraOpen(open => !open)}
+          aria-expanded={cameraOpen}
+          aria-haspopup="listbox"
+          aria-label="Choose a nearby live camera"
+        >
+          <Camera size={14} className="shrink-0 text-[var(--flame)]" />
+          <span className="min-w-0 flex-1 truncate">
+            {selectedCamera ? `${selectedCamera.name} · ${selectedCamera.distance_km.toFixed(1)} km` : 'Nearest live camera'}
+          </span>
+          <ChevronDown size={15} className={`shrink-0 transition-transform ${cameraOpen ? 'rotate-180' : ''}`} />
+        </button>
+
+        {cameraOpen && (
+          <div
+            role="listbox"
+            aria-label="Available cameras near this location"
+            className="fwmap-panel absolute bottom-[calc(100%+8px)] left-0 z-40 w-[340px] overflow-hidden p-1.5 shadow-2xl"
+          >
+            <div className="flex items-center justify-between border-b border-[var(--line)] px-2.5 pb-2 pt-1.5">
+              <div>
+                <div className="fwmap-title">Available cameras</div>
+                <div className="fwmap-mono mt-0.5 text-[9px] text-[var(--ash-3)]">RANKED BY DISTANCE · ALERTWEST</div>
+              </div>
+              <span className="flex items-center gap-1 text-[10px] text-emerald-300"><Radio size={11} /> LIVE</span>
+            </div>
+
+            <button
+              type="button"
+              role="option"
+              aria-selected={!selectedCamera}
+              className={`mt-1 flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[12px] transition-colors ${!selectedCamera ? 'bg-[var(--ember)] text-black' : 'hover:bg-white/5'}`}
+              onClick={() => { setSelectedCamera(null); setCameraOpen(false) }}
+            >
+              <MapPin size={14} />
+              <span className="font-medium">Auto-select the nearest feed</span>
+            </button>
+
+            <div className="fwmap-scroll max-h-[230px] py-1">
+              {cameraLoading && <div className="px-2.5 py-4 text-center text-[12px] text-[var(--ash-3)]">Finding live cameras…</div>}
+              {!cameraLoading && cameraError && <div className="px-2.5 py-4 text-center text-[12px] text-[var(--ash-3)]">{cameraError}</div>}
+              {!cameraLoading && cameras.map(camera => (
+                <button
+                  type="button"
+                  key={camera.id}
+                  role="option"
+                  aria-selected={selectedCamera?.id === camera.id}
+                  className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors ${selectedCamera?.id === camera.id ? 'bg-white/10' : 'hover:bg-white/5'}`}
+                  onClick={() => { setSelectedCamera(camera); setCameraOpen(false) }}
+                >
+                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-[var(--flame)]/15 text-[var(--flame)]"><Camera size={14} /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[12px] font-medium">{camera.name}</span>
+                    <span className="fwmap-mono block truncate text-[9px] text-[var(--ash-3)]">{camera.lat.toFixed(4)}, {camera.lon.toFixed(4)}</span>
+                  </span>
+                  <span className="fwmap-mono shrink-0 text-[10px] text-[var(--ember)]">{camera.distance_km.toFixed(1)} km</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       <button className="fwmap-btn fwmap-btn--ember" onClick={submit} disabled={running}>
         {running ? <span className="fwmap-spinner" /> : <Play size={14} fill="currentColor" />}

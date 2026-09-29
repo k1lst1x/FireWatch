@@ -9,6 +9,7 @@ import { AnalysisBar, IncidentDetail } from '../map/overlays/Inspector'
 import FlameMark from '../map/overlays/FlameMark'
 import type { BasemapTier } from '../map/config'
 import type { CaliforniaTourController, TourStop, TourState } from '../map/californiaTour'
+import type { AnalyzeInput } from '../lib/api'
 import '../map/map.css'
 
 function Console() {
@@ -49,9 +50,7 @@ function Console() {
   }, [])
 
   const onRun = useCallback(
-    (lat: number, lon: number, imageUrl?: string) => {
-      analyze({ lat, lon, image_url: imageUrl })
-    },
+    (input: AnalyzeInput) => analyze(input),
     [analyze],
   )
 

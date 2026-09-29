@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,6 +10,8 @@ from app.db.models import Incident, IncidentStatus
 from app.db.session import get_db
 from app.dependencies import require_admin, require_user
 from app.services.ai.agents.orchestrator import OrchestratorAgent
+from app.services.ai.agents import alertwest
+from app.config import settings
 from app.services.ai.integrations import integration_status
 from app.services.ai.schemas.pipeline import AlertEvent, ConfirmationStatus, PipelineResult
 
@@ -57,6 +59,46 @@ def _serialize(i: Incident) -> dict:
 @router.get("/status")
 async def pipeline_status(_user=Depends(require_user)):
     return integration_status()
+
+
+@router.get("/cameras/nearby")
+async def nearby_cameras(
+    lat: float = Query(ge=-90, le=90),
+    lon: float = Query(ge=-180, le=180),
+    limit: int = Query(default=5, ge=1, le=20),
+    _user=Depends(require_user),
+):
+    """Return online camera feeds nearest a point, without exposing provider raw data."""
+    if settings.camera_source != "alertwest":
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="Nearby camera browsing is available when CAMERA_SOURCE=alertwest",
+        )
+
+    try:
+        cameras = await alertwest.fetch_cameras()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The live camera directory is temporarily unavailable",
+        ) from exc
+
+    ranked = alertwest.nearest(cameras, lat, lon, settings.alertwest_max_km)[:limit]
+    return {
+        "source": "alertwest",
+        "max_distance_km": settings.alertwest_max_km,
+        "cameras": [
+            {
+                "id": camera.cid,
+                "name": camera.name,
+                "lat": camera.lat,
+                "lon": camera.lon,
+                "distance_km": round(distance, 2),
+                "image_url": camera.image_url(),
+            }
+            for distance, camera in ranked
+        ],
+    }
 
 
 @router.post("/analyze", response_model=PipelineResult, status_code=status.HTTP_200_OK)

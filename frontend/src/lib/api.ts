@@ -48,6 +48,21 @@ export interface AnalyzeInput {
   camera_id?: string
 }
 
+export interface NearbyCamera {
+  id: string
+  name: string
+  lat: number
+  lon: number
+  distance_km: number
+  image_url: string
+}
+
+export interface NearbyCamerasResponse {
+  source: string
+  max_distance_km: number
+  cameras: NearbyCamera[]
+}
+
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const token = sessionStorage.getItem('firewatch-token')
   const res = await fetch(`/api${path}`, {
@@ -72,6 +87,8 @@ export const api = {
   status: () => call<PipelineStatus>('/ai/status'),
   incidents: () => call<Incident[]>('/ai/incidents'),
   demoImages: () => call<string[]>('/ai/demo-images'),
+  nearbyCameras: (lat: number, lon: number) =>
+    call<NearbyCamerasResponse>(`/ai/cameras/nearby?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`),
   analyze: (body: AnalyzeInput) => call<PipelineResult>('/ai/analyze', { method: 'POST', body: JSON.stringify(body) }),
   review: (id: string, decision: 'approve' | 'reject', note?: string) =>
     call<Incident & { notification_sent: boolean }>(`/ai/incidents/${id}/review`, {
