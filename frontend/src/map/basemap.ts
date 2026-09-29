@@ -33,23 +33,49 @@ export async function buildCity(
 
   await addKeylessImagery(viewer)
 
-  if (CONFIG.cesiumIonToken) {
-    try {
+  // 2. Statewide / Worldwide 3D OSM Buildings (Cesium Ion)
+  try {
+    if (CONFIG.cesiumIonToken) {
       Cesium.Ion.defaultAccessToken = CONFIG.cesiumIonToken
-      const osm = await Cesium.createOsmBuildingsAsync()
-      if (signal.cancelled) return 'ion'
-      viewer.scene.primitives.add(osm)
-      return 'ion'
-    } catch (err) {
-      console.warn('[map] Cesium Ion buildings unavailable, falling back', err)
     }
+    const osm = await Cesium.createOsmBuildingsAsync()
+    if (signal.cancelled) return 'ion'
+    applyArchitecturalStyle(osm)
+    viewer.scene.primitives.add(osm)
+    return 'ion'
+  } catch (err) {
+    console.warn('[map] Cesium Ion OSM buildings unavailable, falling back to baked footprints', err)
   }
 
+  // 3. Baked fallback
   await addBakedBuildings(viewer, signal)
   return 'baked'
 }
 
-/** Satellite imagery graded to a sleek, elegant dark digital twin palette (Image 2 style) */
+/** Apply realistic, natural architectural materials matching the reference image */
+export function applyArchitecturalStyle(tileset: Cesium.Cesium3DTileset) {
+  tileset.style = new Cesium.Cesium3DTileStyle({
+    color: {
+      conditions: [
+        // High-rise glass & steel towers (> 80m) - sleek dusk slate/navy glass
+        ['${feature["cesium#estimatedHeight"]} >= 120', 'color("#3a4b5d")'],
+        ['${feature["cesium#estimatedHeight"]} >= 75', 'color("#445669")'],
+        // Commercial & civic mid-rises (35m - 75m) - refined architectural limestone & precast concrete
+        ['${feature["cesium#estimatedHeight"]} >= 40', 'color("#545a64")'],
+        ['${feature["cesium#estimatedHeight"]} >= 22', 'color("#5a6068")'],
+        // Low-rise residential & mixed use (< 22m) - warm urban masonry & matte concrete
+        ['${feature["building"]} === "residential" || ${feature["building"]} === "apartments" || ${feature["building"]} === "house"', 'color("#58544f")'],
+        ['${feature["building"]} === "commercial" || ${feature["building"]} === "office"', 'color("#4f5864")'],
+        ['${feature["building"]} === "retail" || ${feature["building"]} === "supermarket"', 'color("#53555a")'],
+        ['${feature["building"]} === "industrial" || ${feature["building"]} === "warehouse"', 'color("#494b50")'],
+        // Natural default architectural tone
+        ['true', 'color("#535860")'],
+      ],
+    },
+  })
+}
+
+/** Satellite imagery in rich, natural dusk color (deep asphalt roads, lush green foliage) */
 async function addKeylessImagery(viewer: Cesium.Viewer) {
   const layers = viewer.imageryLayers
   layers.removeAll()
@@ -60,51 +86,50 @@ async function addKeylessImagery(viewer: Cesium.Viewer) {
       credit: new Cesium.Credit('Imagery © Esri', false),
     }),
   )
-  // Balanced dark mode satellite: deep dark bay, visible streets, natural green parks, zero blowout
-  layer.brightness = 0.62
-  layer.saturation = 0.75
+  // Balanced dusk photorealism: dark charcoal asphalt roads, lush natural trees, zero blown-out water
+  layer.brightness = 0.72
+  layer.saturation = 0.95
   layer.contrast = 1.18
-  layer.gamma = 0.88
+  layer.gamma = 0.92
 }
 
-/** Professional digital twin lighting: moody dusk/twilight with crisp building edges and zero overexposure */
+/** Programmatically transforms lighting maps to match the reference dusk digital twin aesthetic */
 export function applyCinematicStyle(viewer: Cesium.Viewer) {
   const scene = viewer.scene
 
-  // Shadow maps enabled for realistic depth
+  // Enable shadowing subsystem architecture with high-res texture maps
   scene.shadowMap.enabled = true
   scene.shadowMap.softShadows = true
   scene.shadowMap.size = 2048
 
-  // Deep dark navy ocean base (eliminates the blinding white water blowout)
-  scene.globe.baseColor = Cesium.Color.fromCssColorString('#080e18')
-  scene.backgroundColor = Cesium.Color.fromCssColorString('#050810')
+  // Base earth colors: deep navy/slate dusk tones, not pitch black void and not glowing
+  scene.globe.baseColor = Cesium.Color.fromCssColorString('#0a111a')
+  scene.backgroundColor = Cesium.Color.fromCssColorString('#070b12')
 
   if (scene.skyAtmosphere) {
     scene.skyAtmosphere.show = true
     scene.skyAtmosphere.hueShift = -0.05
-    scene.skyAtmosphere.saturationShift = -0.2
-    scene.skyAtmosphere.brightnessShift = -0.3
+    scene.skyAtmosphere.saturationShift = -0.1
+    scene.skyAtmosphere.brightnessShift = -0.12
   }
   if (scene.skyBox) scene.skyBox.show = false
 
   scene.globe.enableLighting = true
 
-  // Balanced architectural twilight light (cool silver-blue, sculpts massing without blowing out surfaces)
+  // Balanced directional twilight light (crisp architectural shadows, NO glowing sun blowout)
   scene.light = new Cesium.DirectionalLight({
-    direction: new Cesium.Cartesian3(0.42, -0.58, -0.68),
-    color: Cesium.Color.fromCssColorString('#cbd8ee'),
-    intensity: 1.35,
+    direction: new Cesium.Cartesian3(0.45, -0.65, -0.55),
+    color: Cesium.Color.fromCssColorString('#d6e4f0'),
+    intensity: 1.32,
   })
 
-  // Atmospheric fog: soft and subtle
+  // Atmospheric fog: clean, clear visibility like modern 3D digital twins
   scene.fog.enabled = true
-  scene.fog.density = 0.0001
-  scene.globe.showGroundAtmosphere = false
+  scene.fog.density = 0.00005
+  scene.globe.showGroundAtmosphere = true
 
-  // Disable aggressive bloom that caused the white blowout
-  const bloom = scene.postProcessStages.bloom
-  bloom.enabled = false
+  // CRITICAL: Bloom remains disabled to prevent blinding nuclear water blowout or glowing sun
+  scene.postProcessStages.bloom.enabled = false
 }
 
 /**

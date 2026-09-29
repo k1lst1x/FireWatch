@@ -17,33 +17,34 @@ interface Baked {
 
 const nextFrame = () => new Promise<void>(r => requestAnimationFrame(() => r()))
 
-/** Sleek, refined architectural facade coloring (Image 2 style) */
+/** Realistic architectural facade coloring inspired by the reference dusk digital twin */
 function facade(height: number, i: number): Cesium.Color {
-  const hNorm = Math.min(height / 180, 1)
+  const hNorm = Math.min(height / 200, 1)
+  // Deterministic seed for material variation
   const seed = ((i * 9301 + 49297) % 233280) / 233280
 
-  if (height > 80) {
-    // High-rise towers: sleek architectural slate-glass with subtle blue reflection
+  if (height > 90) {
+    // High-rise glass towers: modern architectural slate/navy glass
     return new Cesium.Color(
-      0.22 + seed * 0.08,
-      0.28 + seed * 0.08 + hNorm * 0.06,
-      0.36 + seed * 0.10 + hNorm * 0.08,
+      0.23 + seed * 0.05,
+      0.30 + seed * 0.06 + hNorm * 0.04,
+      0.38 + seed * 0.07 + hNorm * 0.05,
       1.0,
     )
-  } else if (height > 30) {
-    // Mid-rise: refined urban concrete & limestone
+  } else if (height > 35) {
+    // Mid-rise commercial & civic: refined limestone & architectural precast concrete
     return new Cesium.Color(
-      0.28 + seed * 0.06,
-      0.28 + seed * 0.06,
-      0.30 + seed * 0.06,
+      0.33 + seed * 0.04,
+      0.35 + seed * 0.04,
+      0.38 + seed * 0.04,
       1.0,
     )
   } else {
-    // Low-rise: clean dark urban blocks
+    // Urban low-rise buildings: warm masonry & natural matte facade tones
     return new Cesium.Color(
-      0.20 + seed * 0.06,
-      0.21 + seed * 0.06,
-      0.24 + seed * 0.06,
+      0.35 + seed * 0.05,
+      0.33 + seed * 0.05,
+      0.31 + seed * 0.04,
       1.0,
     )
   }

@@ -13,7 +13,7 @@ interface Props {
   /** Bumping this flies the camera back to the opening shot. */
   resetToken: number
   onReady: (tier: BasemapTier) => void
-  cameraMode?: 'isometric' | 'topdown' | 'cinematic'
+  cameraMode?: 'california' | 'isometric' | 'topdown' | 'cinematic'
 }
 
 export default function CityMap({ incidents, selectedId, onSelect, resetToken, onReady, cameraMode = 'isometric' }: Props) {
@@ -49,9 +49,15 @@ export default function CityMap({ incidents, selectedId, onSelect, resetToken, o
       selectionIndicator: false,
       creditContainer: document.createElement('div'),
       baseLayer: false,
-      terrainProvider: new Cesium.EllipsoidTerrainProvider(),
+      terrain: Cesium.Terrain.fromWorldTerrain({
+        requestWaterMask: true,
+        requestVertexNormals: true,
+      }),
     })
     viewerRef.current = viewer
+
+    // Enable terrain occlusion so mountain ridges and buildings properly occlude
+    viewer.scene.globe.depthTestAgainstTerrain = true
 
     // Clock.shouldAnimate is false by default and the animation widget (which
     // normally turns it on) is disabled here. Without this the particle systems
@@ -131,7 +137,17 @@ export default function CityMap({ incidents, selectedId, onSelect, resetToken, o
     const viewer = viewerRef.current
     if (!viewer || !ready) return
 
-    if (cameraMode === 'isometric') {
+    if (cameraMode === 'california') {
+      viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(-119.5, 36.4, 520000),
+        orientation: {
+          heading: Cesium.Math.toRadians(348),
+          pitch: Cesium.Math.toRadians(-48),
+          roll: 0,
+        },
+        duration: 2.2,
+      })
+    } else if (cameraMode === 'isometric') {
       frameDowntown(viewer)
     } else if (cameraMode === 'topdown') {
       viewer.camera.flyTo({

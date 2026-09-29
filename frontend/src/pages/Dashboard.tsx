@@ -18,7 +18,7 @@ function Console() {
   const [tier, setTier] = useState<BasemapTier | null>(null)
   const [booted, setBooted] = useState(false)
 
-  const [cameraMode, setCameraMode] = useState<'isometric' | 'topdown' | 'cinematic'>('isometric')
+  const [cameraMode, setCameraMode] = useState<'california' | 'isometric' | 'topdown' | 'cinematic'>('isometric')
   const [hudVisible, setHudVisible] = useState(true)
 
   // with no backend the city would be empty, which makes for a dead demo
@@ -61,6 +61,17 @@ function Console() {
 
         {/* Center Camera Matrix Switcher from Blueprint */}
         <div className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-white/10 bg-black/60 p-1 backdrop-blur-md">
+          <button
+            className={`rounded-full px-3 py-1 text-[11px] font-medium transition-all ${
+              cameraMode === 'california'
+                ? 'bg-[#ff5a00] text-white shadow-[0_0_12px_rgba(255,90,0,0.4)]'
+                : 'text-zinc-400 hover:text-white'
+            }`}
+            onClick={() => setCameraMode('california')}
+            title="Statewide 3D Topography & Wildfire Overview"
+          >
+            California 3D
+          </button>
           <button
             className={`rounded-full px-3 py-1 text-[11px] font-medium transition-all ${
               cameraMode === 'isometric'

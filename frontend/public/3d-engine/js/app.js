@@ -36,11 +36,11 @@ async function initGoogle3DTiles() {
                     credit: new Cesium.Credit('Imagery © Esri', false),
                 })
             );
-            // Balanced dark mode satellite: deep dark bay, visible streets, natural green parks, zero blowout
-            esri.brightness = 0.62;
-            esri.saturation = 0.75;
+            // Balanced dusk photorealism: dark asphalt roads, rich foliage, zero blown-out water
+            esri.brightness = 0.72;
+            esri.saturation = 0.95;
             esri.contrast = 1.18;
-            esri.gamma = 0.88;
+            esri.gamma = 0.92;
         }
     } catch (error) {
         console.error("[CRITICAL RENDERING FAULT] Mesh load aborted:", error);
@@ -48,7 +48,7 @@ async function initGoogle3DTiles() {
 }
 
 /**
- * Programmatically transforms default lighting maps to match a sleek dark digital twin.
+ * Programmatically transforms default lighting maps to match the dusk digital twin aesthetic.
  */
 function injectCinematicEnvironmentStyle() {
     const scene = viewer.scene;
@@ -58,31 +58,29 @@ function injectCinematicEnvironmentStyle() {
     scene.shadowMap.softShadows = true;
     scene.shadowMap.size = 2048;
 
-    // Deep dark navy ocean base (eliminates blinding white water blowout)
-    scene.globe.baseColor = Cesium.Color.fromCssColorString('#080e18');
-    scene.backgroundColor = Cesium.Color.fromCssColorString('#050810');
+    scene.globe.baseColor = Cesium.Color.fromCssColorString('#0a111a');
+    scene.backgroundColor = Cesium.Color.fromCssColorString('#070b12');
 
     if (scene.skyAtmosphere) {
         scene.skyAtmosphere.show = true;
         scene.skyAtmosphere.hueShift = -0.05;
-        scene.skyAtmosphere.saturationShift = -0.2;
-        scene.skyAtmosphere.brightnessShift = -0.3;
+        scene.skyAtmosphere.saturationShift = -0.1;
+        scene.skyAtmosphere.brightnessShift = -0.12;
     }
 
     scene.globe.enableLighting = true;
 
-    // Balanced architectural twilight light (cool silver-blue, sculpts massing without blowing out surfaces)
+    // Balanced directional twilight light (crisp architectural massing without glowing sun blowout)
     scene.light = new Cesium.DirectionalLight({
-        direction: new Cesium.Cartesian3(0.42, -0.58, -0.68),
-        color: Cesium.Color.fromCssColorString('#cbd8ee'),
-        intensity: 1.35
+        direction: new Cesium.Cartesian3(0.45, -0.65, -0.55),
+        color: Cesium.Color.fromCssColorString('#d6e4f0'),
+        intensity: 1.32
     });
     
     scene.fog.enabled = true;
-    scene.fog.density = 0.0001;
-    scene.globe.showGroundAtmosphere = false;
+    scene.fog.density = 0.00005;
+    scene.globe.showGroundAtmosphere = true;
 
-    // Disable bloom to prevent overexposure
     if (scene.postProcessStages && scene.postProcessStages.bloom) {
         scene.postProcessStages.bloom.enabled = false;
     }
