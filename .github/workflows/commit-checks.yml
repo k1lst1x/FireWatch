@@ -41,6 +41,8 @@ jobs:
 
       - name: Run deterministic backend regression tests
         env:
+          # CI has no .env. This is an inert test-only value, not a deployed secret.
+          SECRET_KEY: ci-test-only-signing-key
           ANTHROPIC_API_KEY: ''
           OPENAI_API_KEY: ''
           NEBIUS_API_KEY: ''
