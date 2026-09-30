@@ -19,15 +19,50 @@ def main() -> int:
         return 2
 
     base_url = settings.nebius_base_url.rstrip("/")
+    project_id = (settings.nebius_project_id or "").strip()
+    params = {"ai_project_id": project_id} if project_id else None
+    headers = {"Authorization": f"Bearer {api_key}"}
     try:
         response = httpx.get(
             f"{base_url}/models",
-            headers={"Authorization": f"Bearer {api_key}"},
-            timeout=15.0,
+            headers=headers,
+            params=params,
+            timeout=20.0,
         )
         response.raise_for_status()
     except httpx.HTTPError as exc:
-        print(f"Nebius credential check failed: {exc}", file=sys.stderr)
+        selected = settings.nebius_model.strip()
+        if not selected:
+            print(f"Nebius credential check failed: {exc}", file=sys.stderr)
+            return 1
+        probe = httpx.post(
+            f"{base_url}/chat/completions",
+            headers={**headers, "Content-Type": "application/json"},
+            params=params,
+            json={
+                "model": selected,
+                "messages": [{"role": "user", "content": "Reply with the single word ok"}],
+                "max_tokens": 8,
+                "temperature": 0,
+            },
+            timeout=40.0,
+        )
+        if probe.status_code == 402:
+            print(
+                "Nebius accepted the credential and the model, then refused the call: "
+                "the project budget is exhausted. Add funds in Nebius Token Factory, then run this again.",
+                file=sys.stderr,
+            )
+            return 1
+        detail = ""
+        try:
+            detail = str(probe.json().get("detail") or "")
+        except Exception:
+            detail = probe.text[:180]
+        print(
+            f"Nebius model list failed ({exc}). Chat probe HTTP {probe.status_code}: {detail}",
+            file=sys.stderr,
+        )
         return 1
 
     data = response.json().get("data", [])

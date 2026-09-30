@@ -7,7 +7,9 @@ import { getNearbyLiveCameras, type LiveCameraFeed, type CameraCategory } from '
 import CameraFrame from './CameraFrame'
 import { type FrameStatus } from './cameraFrameProbe'
 
-const PRESETS: { label: string; lat: number; lon: number }[] = [
+const PRESETS: { label: string; lat: number; lon: number; cameraId?: string }[] = [
+  { label: 'Demo · Mt Tamalpais fog', lat: 37.9235, lon: -122.5965, cameraId: 'demo-fog-tam' },
+  { label: 'Demo · Yosemite fire', lat: 37.6528, lon: -119.6262 },
   { label: 'San Francisco Downtown', lat: 37.7749, lon: -122.4194 },
   { label: 'SF Bay Bridge West Span', lat: 37.7905, lon: -122.3892 },
   { label: 'Presidio Golden Gate', lat: 37.7989, lon: -122.4662 },
@@ -42,12 +44,14 @@ export function AnalysisBar({
   onSelectCamera?: (camera: LiveCameraFeed | NearbyCamera) => void
   onOpenVideoModal?: (camera: LiveCameraFeed) => void
 }) {
-  const [lat, setLat] = useState('37.7749')
-  const [lon, setLon] = useState('-122.4194')
+  const [lat, setLat] = useState('37.9235')
+  const [lon, setLon] = useState('-122.5965')
+  const [presetIndex, setPresetIndex] = useState('0')
+  const [preferredCameraId, setPreferredCameraId] = useState('demo-fog-tam')
   const [cameras, setCameras] = useState<LiveCameraFeed[]>([])
   const [selectedCamera, setSelectedCamera] = useState<LiveCameraFeed | null>(null)
   const [category, setCategory] = useState<CameraCategory>('all')
-  const [cameraOpen, setCameraOpen] = useState(false)
+  const [cameraOpen, setCameraOpen] = useState(true)
   const [cameraLoading, setCameraLoading] = useState(false)
   const [cameraError, setCameraError] = useState<string | null>(null)
   const [cameraUpdatedAt, setCameraUpdatedAt] = useState<number | null>(null)
@@ -96,13 +100,18 @@ export function AnalysisBar({
     const nearby = getNearbyLiveCameras(la, lo, category)
     setCameras(nearby)
     setCameraUpdatedAt(Date.now())
-    setSelectedCamera(current => (current ? nearby.find(c => c.id === current.id) ?? nearby[0] : nearby[0]))
+    setSelectedCamera(current => {
+      const preferred = nearby.find(c => c.id === preferredCameraId)
+      if (preferred) return preferred
+      return current ? nearby.find(c => c.id === current.id) ?? nearby[0] : nearby[0]
+    })
     setCameraLoading(false)
-  }, [lat, lon, category, cameraPoll])
+  }, [lat, lon, category, cameraPoll, preferredCameraId])
 
   const activeFeed = selectedCamera ?? cameras[0] ?? null
 
   const handleSelect = (cam: LiveCameraFeed | null) => {
+    setPreferredCameraId(cam?.id ?? '')
     setSelectedCamera(cam)
     if (cam && onSelectCamera) {
       onSelectCamera(cam)
@@ -125,14 +134,19 @@ export function AnalysisBar({
     <div className="fwmap-panel fwmap-enter pointer-events-auto flex flex-wrap items-center gap-2.5 p-3">
       <select
         className="fwmap-input cursor-pointer"
+        value={presetIndex}
         onChange={e => {
-          const p = PRESETS[Number(e.target.value)]
-          if (p) { setLat(String(p.lat)); setLon(String(p.lon)) }
+          const index = e.target.value
+          const p = PRESETS[Number(index)]
+          setPresetIndex(index)
+          if (!p) return
+          setLat(String(p.lat))
+          setLon(String(p.lon))
+          setPreferredCameraId(p.cameraId ?? '')
+          if (!p.cameraId) setSelectedCamera(null)
         }}
-        defaultValue=""
         aria-label="Location preset"
       >
-        <option value="" disabled>Location preset</option>
         {PRESETS.map((p, i) => <option key={p.label} value={i}>{p.label}</option>)}
       </select>
 
@@ -221,6 +235,7 @@ export function AnalysisBar({
                   <CameraFrame
                     src={activeFeed.live_cctv_url || activeFeed.image_url}
                     alt={activeFeed.name}
+                    refreshMs={(activeFeed.live_cctv_url || activeFeed.image_url || '').includes('demo_images') ? 0 : 5000}
                     onStatusChange={setFeedStatus}
                   />
 

@@ -74,9 +74,18 @@ def build_model(selected_provider: str | None = None):
     if selected_provider == "nebius":
         if not settings.nebius_model.strip():
             raise ValueError("NEBIUS_MODEL must be set when LLM_PROVIDER=nebius")
+        from openai import AsyncOpenAI
+
+        client_kwargs: dict[str, Any] = {
+            "api_key": settings.nebius_api_key,
+            "base_url": settings.nebius_base_url,
+        }
+        project_id = (settings.nebius_project_id or "").strip()
+        if project_id:
+            client_kwargs["default_query"] = {"ai_project_id": project_id}
         return OpenAIChatModel(
             settings.nebius_model,
-            provider=OpenAIProvider(api_key=settings.nebius_api_key, base_url=settings.nebius_base_url),
+            provider=OpenAIProvider(openai_client=AsyncOpenAI(**client_kwargs)),
         )
     kwargs: dict[str, Any] = {"api_key": settings.openai_api_key}
     if settings.openai_base_url:

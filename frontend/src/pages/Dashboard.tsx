@@ -27,7 +27,7 @@ function Console() {
   const navigate = useNavigate()
   const { status, incidents, backendUp, running, error, analyze, review, refresh } = useBayhawk()
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null)
+  const [selectedCameraId, setSelectedCameraId] = useState<string | null>('demo-fog-tam')
   const [videoModalCamera, setVideoModalCamera] = useState<LiveCameraFeed | null>(null)
   const [resetToken, setResetToken] = useState(0)
   const [tier, setTier] = useState<BasemapTier | null>(null)
@@ -51,9 +51,9 @@ function Console() {
   const [weatherLoading, setWeatherLoading] = useState(false)
   const [nasaHotspots, setNasaHotspots] = useState<RealtimeNasaHotspot[]>([])
   const [targetCoords, setTargetCoords] = useState<{ lat: number; lon: number; name: string }>({
-    lat: 37.7749,
-    lon: -122.4194,
-    name: 'San Francisco Downtown',
+    lat: 37.9235,
+    lon: -122.5965,
+    name: 'Mt Tamalpais fog demo',
   })
 
   // Synchronize real-time weather and NASA satellite telemetry
@@ -282,7 +282,7 @@ function Console() {
             className={`rounded-full px-3 py-1 text-[11px] font-medium transition-all ${
               cameraMode === 'isometric'
                 ? 'bg-[#ff5a00] text-white shadow-[0_0_12px_rgba(255,90,0,0.4)]'
-                : 'text-zinc-400 hover:text-white'
+                : 'bg-zinc-600 text-zinc-100 hover:bg-zinc-500'
             }`}
             onClick={() => setCameraMode('isometric')}
             title="San Francisco Downtown Core"
@@ -293,7 +293,7 @@ function Console() {
             className={`rounded-full px-3 py-1 text-[11px] font-medium transition-all ${
               cameraMode === 'topdown'
                 ? 'bg-[#ff5a00] text-white shadow-[0_0_12px_rgba(255,90,0,0.4)]'
-                : 'text-zinc-400 hover:text-white'
+                : 'bg-zinc-600 text-zinc-100 hover:bg-zinc-500'
             }`}
             onClick={() => setCameraMode('topdown')}
             title="Bay Area Regional View"
@@ -304,7 +304,7 @@ function Console() {
             className={`rounded-full px-3 py-1 text-[11px] font-medium transition-all ${
               cameraMode === 'cinematic'
                 ? 'bg-[#ff5a00] text-white shadow-[0_0_12px_rgba(255,90,0,0.4)]'
-                : 'text-zinc-400 hover:text-white'
+                : 'bg-zinc-600 text-zinc-100 hover:bg-zinc-500'
             }`}
             onClick={() => setCameraMode('cinematic')}
             title="California Statewide View"

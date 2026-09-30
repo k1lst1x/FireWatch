@@ -42,7 +42,8 @@ export default function CameraFrame({ src, alt, refreshMs = 5000, onStatusChange
   const handleLoad = useCallback(() => {
     const img = imgRef.current
     if (!img || !src) return
-    setResult({ src, status: looksLikePlaceholder(img) ? 'offline' : 'live' })
+    const localDemo = src.includes('demo_images')
+    setResult({ src, status: !localDemo && looksLikePlaceholder(img) ? 'offline' : 'live' })
   }, [src])
 
   const handleError = useCallback(() => {

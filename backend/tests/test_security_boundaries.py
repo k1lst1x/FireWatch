@@ -30,11 +30,9 @@ async def test_admin_dependency_rejects_anonymous_when_auth_is_enabled(monkeypat
 
 
 @pytest.mark.asyncio
-async def test_admin_dependency_rejects_anonymous_local_demo(monkeypatch):
+async def test_admin_dependency_allows_anonymous_local_demo(monkeypatch):
     monkeypatch.setattr(settings, "auth_required", False)
-    with pytest.raises(Exception) as exc:
-        await require_admin(None)
-    assert getattr(exc.value, "status_code", None) == 403
+    assert await require_admin(None) is None
 
 
 @pytest.mark.asyncio

@@ -318,9 +318,15 @@ export default function CityMap({
   }, [selectedCameraId, cameras, ready])
 
   // --- Regional View Presets
+  const skipInitialModeFly = useRef(true)
   useEffect(() => {
     const map = mapRef.current
     if (!map || !ready) return
+    // The first paint stays on the demo still. Mode buttons fly after that.
+    if (skipInitialModeFly.current) {
+      skipInitialModeFly.current = false
+      return
+    }
 
     if (cameraMode === 'isometric') {
       // Downtown SF

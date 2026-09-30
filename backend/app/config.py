@@ -67,6 +67,8 @@ class Settings:
     nebius_api_key: str = os.getenv("NEBIUS_API_KEY", "")
     nebius_model: str = os.getenv("NEBIUS_MODEL", "")
     nebius_base_url: str = os.getenv("NEBIUS_BASE_URL", "https://api.studio.nebius.ai/v1")
+    # IAM access tokens must name a project. Studio API keys usually do not.
+    nebius_project_id: str = os.getenv("NEBIUS_PROJECT_ID", "")
     # Flower Model (Endeavor) exposes the OpenAI Responses API, not Chat Completions.
     flower_api_key: str = os.getenv("FLOWER_API_KEY", "")
     flower_model: str = os.getenv("FLOWER_MODEL", "flwrlabs/endeavor-1.0")

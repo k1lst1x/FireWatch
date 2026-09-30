@@ -25,6 +25,24 @@ export interface LiveCameraFeed extends NearbyCamera {
  * Pulled every 2s directly from California DOT optical sensors.
  */
 export const CALIFORNIA_REALTIME_CAMERAS: LiveCameraFeed[] = [
+  {
+    id: 'demo-fog-tam',
+    name: 'Demo still · Mt Tamalpais fog',
+    lat: 37.9235,
+    lon: -122.5965,
+    distance_km: 0,
+    elevation_m: 784,
+    azimuth: 270,
+    resolution: 'Demo still',
+    fps: 1,
+    network: 'FireWatch demo image',
+    status: 'ONLINE',
+    stream_type: 'live_cctv',
+    live_cctv_url: '/demo_images/fog_demo.jpg',
+    image_url: 'demo_images/fog_demo.jpg',
+    video_url: '/demo_images/fog_demo.jpg',
+    category: 'parks',
+  },
   // ===================== SAN FRANCISCO METRO & BAY CORRIDOR =====================
   {
     id: 'sf-presidio-ggb',

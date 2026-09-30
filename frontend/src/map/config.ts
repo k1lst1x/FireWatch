@@ -89,11 +89,11 @@ export const CONFIG = {
   osmUrl: STANDARD_SOURCE.url,
   satelliteUrl: SATELLITE_SOURCE.url,
 
-  /** Opening shot: San Francisco downtown corridor */
+  /** Opening shot: Mt Tamalpais fog still used in the demo. */
   initialView: {
-    lat: 37.7749,
-    lon: -122.4194,
-    zoom: 13,
+    lat: 37.9235,
+    lon: -122.5965,
+    zoom: 12,
   },
 
   /** Regional presets */
