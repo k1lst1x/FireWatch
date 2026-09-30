@@ -290,7 +290,7 @@ function Console() {
           <span className="text-[17px] font-semibold tracking-[-0.03em]">FireWatch</span>
 
           {booted && (
-            <span className="fwmap-mono hidden sm:inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-950/40 px-2.5 py-0.5 text-[10px] tracking-wide text-emerald-300 backdrop-blur">
+            <span className="fwmap-mono hidden sm:inline-flex items-center gap-1.5 rounded-full border border-emerald-400/40 bg-slate-950/90 px-2.5 py-1 text-[10px] tracking-wide text-emerald-200 shadow-lg shadow-black/50 backdrop-blur-md">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
               TACTICAL 2D RADAR ACTIVE
             </span>
