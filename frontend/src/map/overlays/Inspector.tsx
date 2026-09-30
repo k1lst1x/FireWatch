@@ -9,7 +9,7 @@ import { type FrameStatus } from './cameraFrameProbe'
 
 const PRESETS: { label: string; lat: number; lon: number; cameraId?: string }[] = [
   { label: 'Demo · Mt Tamalpais fog', lat: 37.9235, lon: -122.5965, cameraId: 'demo-fog-tam' },
-  { label: 'Demo · Yosemite fire', lat: 37.6528, lon: -119.6262 },
+  { label: 'Demo · Yosemite fire', lat: 37.6528, lon: -119.6262, cameraId: 'demo-yosemite-fire' },
   { label: 'San Francisco Downtown', lat: 37.7749, lon: -122.4194 },
   { label: 'SF Bay Bridge West Span', lat: 37.7905, lon: -122.3892 },
   { label: 'Presidio Golden Gate', lat: 37.7989, lon: -122.4662 },
@@ -44,10 +44,10 @@ export function AnalysisBar({
   onSelectCamera?: (camera: LiveCameraFeed | NearbyCamera) => void
   onOpenVideoModal?: (camera: LiveCameraFeed) => void
 }) {
-  const [lat, setLat] = useState('37.9235')
-  const [lon, setLon] = useState('-122.5965')
-  const [presetIndex, setPresetIndex] = useState('0')
-  const [preferredCameraId, setPreferredCameraId] = useState('demo-fog-tam')
+  const [lat, setLat] = useState('37.6528')
+  const [lon, setLon] = useState('-119.6262')
+  const [presetIndex, setPresetIndex] = useState('1')
+  const [preferredCameraId, setPreferredCameraId] = useState('demo-yosemite-fire')
   const [cameras, setCameras] = useState<LiveCameraFeed[]>([])
   const [selectedCamera, setSelectedCamera] = useState<LiveCameraFeed | null>(null)
   const [category, setCategory] = useState<CameraCategory>('all')
@@ -58,6 +58,14 @@ export function AnalysisBar({
   const [cameraPoll, setCameraPoll] = useState(0)
   const [liveClock, setLiveClock] = useState(() => new Date().toLocaleTimeString('en-US', { hour12: false }))
   const [feedStatus, setFeedStatus] = useState<FrameStatus>('loading')
+
+  // Move an already-open analysis bar onto the Yosemite fire point.
+  useEffect(() => {
+    setLat('37.6528')
+    setLon('-119.6262')
+    setPresetIndex('1')
+    setPreferredCameraId('demo-yosemite-fire')
+  }, [])
 
   // Synchronize when a camera is chosen on the map
   useEffect(() => {
@@ -125,7 +133,7 @@ export function AnalysisBar({
     onRun({
       lat: la,
       lon: lo,
-      image_url: activeFeed?.image_url,
+      image_url: activeFeed?.image_url || undefined,
       camera_id: activeFeed?.id,
     })
   }
@@ -174,7 +182,7 @@ export function AnalysisBar({
           <div
             role="listbox"
             aria-label="Available cameras near this location"
-            className="fwmap-panel absolute bottom-[calc(100%+8px)] left-0 z-40 w-[410px] sm:w-[460px] overflow-hidden p-3 shadow-2xl border border-white/15 bg-black/95 backdrop-blur-2xl rounded-xl"
+            className="fwmap-panel absolute bottom-[calc(100%+8px)] left-0 z-40 w-[410px] sm:w-[460px] overflow-hidden p-3 shadow-2xl border border-white/15 bg-black/95 rounded-xl"
           >
             {/* Box Header */}
             <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
@@ -193,7 +201,7 @@ export function AnalysisBar({
               {/* Real-time LIVE indicator */}
               <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-950/70 px-2.5 py-1 text-[10px] font-semibold text-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.25)]">
                 <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400/40"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                 </span>
                 <span>LIVE FEED</span>

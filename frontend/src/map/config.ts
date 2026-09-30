@@ -89,11 +89,11 @@ export const CONFIG = {
   osmUrl: STANDARD_SOURCE.url,
   satelliteUrl: SATELLITE_SOURCE.url,
 
-  /** Opening shot: Mt Tamalpais fog still used in the demo. */
+  /** Opening shot: Yosemite FIRMS fire point used in the demo. */
   initialView: {
-    lat: 37.9235,
-    lon: -122.5965,
-    zoom: 12,
+    lat: 37.6528,
+    lon: -119.6262,
+    zoom: 11,
   },
 
   /** Regional presets */

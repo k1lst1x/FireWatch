@@ -61,13 +61,13 @@ export default function LiveWeatherWidget({
   return (
     <aside
       aria-label="Real-time NASA & Weather Telemetry HUD"
-      className="pointer-events-auto w-[310px] rounded-2xl border border-white/15 bg-black/85 p-3.5 backdrop-blur-xl shadow-2xl text-white transition-all duration-300"
+      className="pointer-events-auto w-[310px] rounded-2xl border border-white/15 bg-black/95 p-3.5 shadow-2xl text-white"
     >
       {/* Top Header with Live Pulse */}
       <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
         <div className="flex items-center gap-2">
           <div className="relative flex h-2.5 w-2.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400/40" />
             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
           </div>
           <div>
@@ -182,7 +182,7 @@ export default function LiveWeatherWidget({
               {/* Wind Speed & Compass Arrow */}
               <div className="flex items-center gap-2">
                 <div
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-sky-500/30 bg-sky-500/10 text-sky-400 transition-transform duration-700"
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-sky-500/30 bg-sky-500/10 text-sky-400"
                   style={{ transform: `rotate(${weather.windDirectionDeg}deg)` }}
                   title={`Wind blowing towards ${weather.windDirectionDeg}°`}
                 >

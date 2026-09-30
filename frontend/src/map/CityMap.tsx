@@ -81,7 +81,16 @@ export default function CityMap({
   const selectRef = useRef(onSelect)
   const onSelectCameraRef = useRef(onSelectCamera)
   const readyRef = useRef(onReady)
+  const incidentsRef = useRef(incidents)
+  const camerasRef = useRef(cameras)
+  const incidentDrawKey = useRef('')
+  const cameraDrawKey = useRef('')
+  const lastIncidentFly = useRef<string | null>(null)
+  const lastCameraFly = useRef<string | null>(null)
   const [ready, setReady] = useState(false)
+
+  incidentsRef.current = incidents
+  camerasRef.current = cameras
 
   useEffect(() => {
     selectRef.current = onSelect
@@ -201,6 +210,12 @@ export default function CityMap({
     const layer = incidentsLayerRef.current
     if (!layer || !ready) return
 
+    const drawKey = incidents
+      .map(i => `${i.id}:${i.lat}:${i.lon}:${i.criticality ?? ''}:${selectedId === i.id ? 1 : 0}`)
+      .join('|')
+    if (drawKey === incidentDrawKey.current) return
+    incidentDrawKey.current = drawKey
+
     layer.clearLayers()
 
     incidents.forEach(incident => {
@@ -249,6 +264,12 @@ export default function CityMap({
     const layer = camerasLayerRef.current
     if (!layer || !ready) return
 
+    const drawKey = cameras
+      .map(c => `${c.id}:${c.lat}:${c.lon}:${selectedCameraId === c.id ? 1 : 0}`)
+      .join('|')
+    if (drawKey === cameraDrawKey.current) return
+    cameraDrawKey.current = drawKey
+
     layer.clearLayers()
 
     cameras.forEach(cam => {
@@ -295,27 +316,31 @@ export default function CityMap({
   useEffect(() => {
     const map = mapRef.current
     if (!map || !ready || !selectedId) return
-    const incident = incidents.find(i => i.id === selectedId)
+    if (lastIncidentFly.current === selectedId) return
+    const incident = incidentsRef.current.find(i => i.id === selectedId)
     if (!incident || !Number.isFinite(incident.lat) || !Number.isFinite(incident.lon)) return
-
-    map.flyTo([incident.lat, incident.lon], Math.max(map.getZoom(), 14), {
-      duration: 0.6,
-      easeLinearity: 0.3,
+    lastIncidentFly.current = selectedId
+    map.stop()
+    map.flyTo([incident.lat, incident.lon], Math.max(map.getZoom(), 12), {
+      duration: 0.55,
+      easeLinearity: 0.85,
     })
-  }, [selectedId, incidents, ready])
+  }, [selectedId, ready])
 
   // --- Pan / Fly to on Camera Selection
   useEffect(() => {
     const map = mapRef.current
     if (!map || !ready || !selectedCameraId) return
-    const cam = cameras.find(c => c.id === selectedCameraId)
+    if (lastCameraFly.current === selectedCameraId) return
+    const cam = camerasRef.current.find(c => c.id === selectedCameraId)
     if (!cam || !Number.isFinite(cam.lat) || !Number.isFinite(cam.lon)) return
-
-    map.flyTo([cam.lat, cam.lon], Math.max(map.getZoom(), 14), {
-      duration: 0.6,
-      easeLinearity: 0.3,
+    lastCameraFly.current = selectedCameraId
+    map.stop()
+    map.flyTo([cam.lat, cam.lon], Math.max(map.getZoom(), 12), {
+      duration: 0.55,
+      easeLinearity: 0.85,
     })
-  }, [selectedCameraId, cameras, ready])
+  }, [selectedCameraId, ready])
 
   // --- Regional View Presets
   const skipInitialModeFly = useRef(true)

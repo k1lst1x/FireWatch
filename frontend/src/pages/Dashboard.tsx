@@ -27,7 +27,7 @@ function Console() {
   const navigate = useNavigate()
   const { status, incidents, backendUp, running, error, analyze, review, refresh } = useBayhawk()
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [selectedCameraId, setSelectedCameraId] = useState<string | null>('demo-fog-tam')
+  const [selectedCameraId, setSelectedCameraId] = useState<string | null>('demo-yosemite-fire')
   const [videoModalCamera, setVideoModalCamera] = useState<LiveCameraFeed | null>(null)
   const [resetToken, setResetToken] = useState(0)
   const [tier, setTier] = useState<BasemapTier | null>(null)
@@ -51,10 +51,31 @@ function Console() {
   const [weatherLoading, setWeatherLoading] = useState(false)
   const [nasaHotspots, setNasaHotspots] = useState<RealtimeNasaHotspot[]>([])
   const [targetCoords, setTargetCoords] = useState<{ lat: number; lon: number; name: string }>({
-    lat: 37.9235,
-    lon: -122.5965,
-    name: 'Mt Tamalpais fog demo',
+    lat: 37.6528,
+    lon: -119.6262,
+    name: 'Yosemite fire demo',
   })
+
+  // Keep the Yosemite demo pin on the current still if the directory reloads.
+  useEffect(() => {
+    const fresh = CALIFORNIA_REALTIME_CAMERAS.find(c => c.id === 'demo-yosemite-fire')
+    if (!fresh) return
+    setCameras(prev => {
+      const rest = prev.filter(c => c.id !== fresh.id)
+      return [fresh, ...rest]
+    })
+  }, [])
+
+  // Move an already-open dashboard onto the Yosemite fire point.
+  useEffect(() => {
+    setCameras(prev => (
+      prev.some(c => c.id === 'demo-yosemite-fire')
+        ? prev
+        : [CALIFORNIA_REALTIME_CAMERAS.find(c => c.id === 'demo-yosemite-fire')!, ...prev].filter(Boolean)
+    ))
+    setSelectedCameraId('demo-yosemite-fire')
+    setTargetCoords({ lat: 37.6528, lon: -119.6262, name: 'Yosemite fire demo' })
+  }, [])
 
   // Synchronize real-time weather and NASA satellite telemetry
   const syncTelemetry = useCallback(async (lat = targetCoords.lat, lon = targetCoords.lon, name = targetCoords.name) => {
@@ -277,7 +298,7 @@ function Console() {
         </div>
 
         {/* Center Camera Matrix Controls focused strictly on California / SF */}
-        <div className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-white/10 bg-black/70 p-1 backdrop-blur-md shadow-2xl">
+        <div className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-white/10 bg-black/90 p-1 shadow-2xl">
           <button
             className={`rounded-full px-3 py-1 text-[11px] font-medium transition-all ${
               cameraMode === 'isometric'
@@ -427,7 +448,7 @@ function Console() {
 
       {/* bottom left legend */}
       {hudVisible && (
-        <div className="pointer-events-auto absolute bottom-7 left-5 z-20 rounded-xl border border-white/10 bg-black/70 p-3.5 backdrop-blur-md text-white text-xs max-w-[280px]">
+        <div className="pointer-events-auto absolute bottom-7 left-5 z-20 rounded-xl border border-white/10 bg-black/90 p-3.5 text-white text-xs max-w-[280px]">
           <div className="flex items-center justify-between mb-1.5">
             <span className="font-semibold text-[#ff6a00] tracking-wide text-[11px] uppercase">Fire Radiative Power (FRP)</span>
             <span className="text-[10px] text-zinc-400 font-mono">VIIRS NRT</span>

@@ -21,6 +21,8 @@ export default function CameraFrame({ src, alt, refreshMs = 5000, onStatusChange
   const [result, setResult] = useState<{ src: string; status: FrameStatus } | null>(null)
   const [stamp, setStamp] = useState(() => Date.now())
   const imgRef = useRef<HTMLImageElement>(null)
+  const isDemoStill = Boolean(src?.includes('demo_images'))
+  const effectiveRefresh = isDemoStill ? 0 : refreshMs
 
   const status: FrameStatus = !src ? 'offline' : result?.src === src ? result.status : 'loading'
 
@@ -34,23 +36,25 @@ export default function CameraFrame({ src, alt, refreshMs = 5000, onStatusChange
   }, [status])
 
   useEffect(() => {
-    if (!src || !refreshMs) return
-    const timer = window.setInterval(() => setStamp(Date.now()), refreshMs)
+    if (!src || !effectiveRefresh) return
+    const timer = window.setInterval(() => setStamp(Date.now()), effectiveRefresh)
     return () => window.clearInterval(timer)
-  }, [src, refreshMs])
+  }, [src, effectiveRefresh])
 
   const handleLoad = useCallback(() => {
     const img = imgRef.current
     if (!img || !src) return
+    // The fog still is mostly bright sky. The Caltrans placeholder test would
+    // mark it offline a few seconds after it loads.
     const localDemo = src.includes('demo_images')
-    setResult({ src, status: !localDemo && looksLikePlaceholder(img) ? 'offline' : 'live' })
+    setResult({ src, status: localDemo || !looksLikePlaceholder(img) ? 'live' : 'offline' })
   }, [src])
 
   const handleError = useCallback(() => {
     if (src) setResult({ src, status: 'offline' })
   }, [src])
 
-  const url = src ? `${src}${src.includes('?') ? '&' : '?'}_t=${stamp}` : ''
+  const url = !src ? '' : isDemoStill ? src : `${src}${src.includes('?') ? '&' : '?'}_t=${stamp}`
 
   return (
     <div className={`relative h-full w-full overflow-hidden bg-zinc-950 ${className ?? ''}`}>

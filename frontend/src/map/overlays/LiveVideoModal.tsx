@@ -73,9 +73,10 @@ export default function LiveVideoModal({
     return () => window.clearInterval(timer)
   }, [])
 
-  // Continuous Real-Time CCTV Poller: Pulls fresh live frame every 2.0s directly from DOT
+  // Continuous Real-Time CCTV Poller: Pulls fresh live frame every 2.0s directly from DOT.
+  // A demo still is a local file, not a DOT feed, so it must not be re-probed.
   useEffect(() => {
-    if (!baseCctvUrl) return
+    if (!baseCctvUrl || baseCctvUrl.includes('demo_images')) return
 
     const pollInterval = window.setInterval(() => {
       const t0 = performance.now()
