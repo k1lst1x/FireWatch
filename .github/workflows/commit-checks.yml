@@ -1,0 +1,78 @@
+name: Commit checks
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: commit-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Verify locked dependencies
+        run: uv lock --check
+
+      - name: Install dependencies
+        run: uv sync --dev --frozen
+
+      - name: Compile backend
+        run: PYTHONPATH=backend uv run python -m compileall -q backend
+
+      - name: Run deterministic backend regression tests
+        env:
+          ANTHROPIC_API_KEY: ''
+          OPENAI_API_KEY: ''
+          NEBIUS_API_KEY: ''
+          FLOWER_API_KEY: ''
+          OPENWEATHERMAP_API_KEY: ''
+          NASA_FIRMS_MAP_KEY: ''
+          ALERTCA_API_KEY: ''
+        run: >-
+          PYTHONPATH=backend uv run pytest
+          backend/tests/test_security_boundaries.py
+          backend/tests/test_orchestrator_stage1.py
+          backend/tests/test_http_retry.py
+
+  frontend:
+    name: Frontend checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build

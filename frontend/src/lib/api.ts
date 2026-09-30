@@ -127,9 +127,15 @@ export interface FederationStatus {
   history: FederationRound[]
 }
 
+// Local Vite development proxies /api to FastAPI. A static deployment can set
+// VITE_API_BASE_URL to the public FastAPI origin (for example,
+// https://api.example.com) at build time.
+const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
+const apiBaseUrl = (configuredApiBaseUrl || '/api').replace(/\/+$/, '')
+
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const token = localStorage.getItem('firewatch-access-token')
-  const res = await fetch(`/api${path}`, {
+  const res = await fetch(`${apiBaseUrl}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',

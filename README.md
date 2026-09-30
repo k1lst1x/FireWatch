@@ -16,6 +16,20 @@ uv run uvicorn app.main:app --app-dir backend --reload
 
 Frontend (second terminal): `cd frontend && npm install && npm run dev`, then open http://localhost:5173. The API requires an operator bearer token by default; register/login through `/docs` while the project has no browser sign-in screen. Privileged dispatch and federation actions always require an administrator token, including local development.
 
+## GitHub Pages and push checks
+
+Every push to `main` runs the backend regression checks and a production frontend build. There are deliberately no pull-request triggers yet.
+
+The frontend is deployed automatically to GitHub Pages at `https://k1lst1x.github.io/FireWatch/`. It is a static deployment: the FastAPI backend, database, and all provider keys remain on a separate server and are never published to Pages.
+
+After pushing the workflow files once, an administrator must do these one-time repository settings:
+
+1. Open **Settings → Pages** and choose **GitHub Actions** as the publishing source.
+2. If a public backend exists, add repository variable **Settings → Secrets and variables → Actions → Variables**: `VITE_API_BASE_URL=https://your-api-host` (no trailing slash). The next Pages deployment builds the UI with that API origin.
+3. On that backend, add `https://k1lst1x.github.io` to `CORS_ORIGINS` and redeploy it. The API must serve HTTPS for a public Pages site.
+
+The Pages build uses hash routes, so opening the dashboard directly works on a static host. Locally it retains normal browser routes and the Vite `/api` proxy.
+
 After verifying an operator's identity, promote their already registered account only from a trusted local shell: `PYTHONPATH=backend uv run python backend/scripts/promote_admin.py operator@example.com`. Public registration always creates a standard user. The browser API helper reads a token from `localStorage` key `firewatch-access-token`; this is temporary until a proper sign-in screen is added.
 
 The application rate limits login, registration, and analysis requests per process. For multi-worker or multi-replica production deployments, also configure shared rate limiting at the ingress or API gateway.
