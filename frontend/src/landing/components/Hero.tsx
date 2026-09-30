@@ -93,6 +93,8 @@ const CHIPS = [
   'Yosemite FIRMS hotspot',
 ]
 
+const heroVideoUrl = (filename: string) => `${import.meta.env.BASE_URL}video/${filename}`
+
 /** Full-bleed 4K Golden Gate plate with the console's viewfinder chrome over it. */
 export function HeroBackdrop({ videoRef }: { videoRef: RefObject<HTMLVideoElement | null> }) {
   const frameRef = useRef<HTMLDivElement>(null)
@@ -106,7 +108,7 @@ export function HeroBackdrop({ videoRef }: { videoRef: RefObject<HTMLVideoElemen
     const conn = (navigator as { connection?: { saveData?: boolean } }).connection
     if (conn?.saveData) return
     const wide = window.matchMedia('(min-width: 1600px)').matches && (window.devicePixelRatio || 1) > 1.2
-    v.src = wide ? '/video/ggb-2160.mp4' : '/video/ggb-1080.mp4'
+    v.src = wide ? heroVideoUrl('ggb-2160.mp4') : heroVideoUrl('ggb-1080.mp4')
     v.load()
     const onReady = () => setLoaded(true)
     if (v.readyState >= 3) onReady()
@@ -125,7 +127,7 @@ export function HeroBackdrop({ videoRef }: { videoRef: RefObject<HTMLVideoElemen
         ref={videoRef}
         className="fw-plate__video"
         style={{ opacity: loaded ? 1 : 0 }}
-        poster="/video/ggb-poster.jpg"
+        poster={heroVideoUrl('ggb-poster.jpg')}
         autoPlay
         muted
         loop
@@ -135,7 +137,7 @@ export function HeroBackdrop({ videoRef }: { videoRef: RefObject<HTMLVideoElemen
       />
       <div
         className="fw-plate__poster"
-        style={{ opacity: loaded ? 0 : 1, backgroundImage: 'url(/video/ggb-poster.jpg)' }}
+        style={{ opacity: loaded ? 0 : 1, backgroundImage: `url(${heroVideoUrl('ggb-poster.jpg')})` }}
       />
       <div className="fw-plate__scrim" />
       <div className="fw-plate__pass" />
