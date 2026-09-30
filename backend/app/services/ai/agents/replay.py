@@ -5,6 +5,7 @@ import logging
 import pathlib
 
 from app.config import settings
+from app.services.ai.agents.images import redact_inline_image_data
 from app.services.ai.schemas.pipeline import AlertEvent, CameraResult, SatelliteResult, WeatherResult
 
 logger = logging.getLogger(__name__)
@@ -18,18 +19,21 @@ def _dir() -> pathlib.Path:
 
 
 def _key(event: AlertEvent) -> str:
-    img = pathlib.Path(event.image_url or "noimg").name.replace(".", "_")[:40]
+    ref = event.image_url or "noimg"
+    img = "inline_image" if ref.startswith("data:") else pathlib.Path(ref).name.replace(".", "_")[:40]
     return f"{event.lat:.3f}_{event.lon:.3f}_{img}.json"
 
 
 def save(event: AlertEvent, camera: CameraResult, satellite: SatelliteResult, weather: WeatherResult) -> None:
     d = _dir()
     d.mkdir(parents=True, exist_ok=True)
+    event_payload = redact_inline_image_data(event.model_dump(mode="json"))
+    camera_payload = redact_inline_image_data(camera.model_dump(mode="json"))
     payload = {
-        "event": event.model_dump(mode="json"),
-        "camera": camera.model_dump(mode="json"),
-        "satellite": satellite.model_dump(mode="json"),
-        "weather": weather.model_dump(mode="json"),
+        "event": event_payload,
+        "camera": camera_payload,
+        "satellite": redact_inline_image_data(satellite.model_dump(mode="json")),
+        "weather": redact_inline_image_data(weather.model_dump(mode="json")),
     }
     (d / _key(event)).write_text(json.dumps(payload, indent=2))
     logger.info("Recorded stage-1 data to %s", d / _key(event))

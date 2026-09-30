@@ -215,4 +215,4 @@ async def test_weather_schema_missing_key_and_logical_error():
     _assert_weather_contract(r2)
     assert r2.wind_speed == 0.0
     assert r2.spread_risk == 0.0
-    assert "openweather_api" in (r2.raw.get("error") or "")
+    assert r2.raw.get("error") == "openweather_api_error"

@@ -67,28 +67,28 @@ class OrchestratorAgent(BaseAgent):
         if isinstance(weather_res, asyncio.CancelledError):
             raise weather_res
         if isinstance(camera_res, BaseException):
-            logger.exception("[%s] Camera agent raised; using empty result", event.event_id, exc_info=camera_res)
+            logger.warning("[%s] Camera agent failed (%s); using empty result", event.event_id, type(camera_res).__name__)
             camera_res = CameraResult(
                 confidence=0.0,
                 detected=False,
                 image_url=None,
-                raw={"error": "agent_exception", "detail": repr(camera_res)},
+                raw={"error": "agent_exception", "exception_type": type(camera_res).__name__},
             )
         if isinstance(satellite_res, BaseException):
-            logger.exception("[%s] Satellite agent raised; using empty result", event.event_id, exc_info=satellite_res)
+            logger.warning("[%s] Satellite agent failed (%s); using empty result", event.event_id, type(satellite_res).__name__)
             satellite_res = SatelliteResult(
                 thermal_confidence=0.0,
                 hotspot_detected=False,
-                raw={"error": "agent_exception", "detail": repr(satellite_res)},
+                raw={"error": "agent_exception", "exception_type": type(satellite_res).__name__},
             )
         if isinstance(weather_res, BaseException):
-            logger.exception("[%s] Weather agent raised; using empty result", event.event_id, exc_info=weather_res)
+            logger.warning("[%s] Weather agent failed (%s); using empty result", event.event_id, type(weather_res).__name__)
             weather_res = WeatherResult(
                 wind_speed=0.0,
                 wind_direction=0.0,
                 humidity=0.0,
                 spread_risk=0.0,
-                raw={"error": "agent_exception", "detail": repr(weather_res)},
+                raw={"error": "agent_exception", "exception_type": type(weather_res).__name__},
             )
         result.camera = camera_res
         result.satellite = satellite_res
@@ -155,8 +155,8 @@ class OrchestratorAgent(BaseAgent):
             result.output = output_res
 
         except Exception as exc:
-            logger.exception("[%s] Post-fusion stage failed", event.event_id)
-            result.error = f"{type(exc).__name__}: {exc}"
+            logger.warning("[%s] Post-fusion stage failed (%s)", event.event_id, type(exc).__name__)
+            result.error = "post_fusion_stage_failed"
             return result
 
         logger.info(

@@ -73,7 +73,7 @@ class WeatherAgent(BaseAgent):
         humidity_factor = max(1.0 - humidity / 100.0, 0.0)
         return round(wind_factor * 0.6 + humidity_factor * 0.4, 3)
 
-    async def _fallback(self, lat: float, lon: float, t0: float, error: str, telemetry: dict[str, Any]) -> WeatherResult:
+    async def _fallback(self, lat: float, lon: float, t0: float, error_code: str, telemetry: dict[str, Any]) -> WeatherResult:
         if settings.weather_fallback:
             data = await fetch_open_meteo(lat, lon)
             if data is not None:
@@ -86,7 +86,7 @@ class WeatherAgent(BaseAgent):
                     wind_direction=wind_direction,
                     humidity=humidity,
                     spread_risk=self._spread_risk(wind_speed, humidity),
-                    raw={**data, "provider": "open-meteo", "primary_error": error},
+                    raw={**data, "provider": "open-meteo", "primary_error": error_code},
                     latency_ms=round((time.perf_counter() - t0) * 1000, 2),
                     telemetry={**telemetry, "provider": "open-meteo"},
                 )
@@ -95,7 +95,7 @@ class WeatherAgent(BaseAgent):
             wind_direction=0.0,
             humidity=0.0,
             spread_risk=0.0,
-            raw={"error": error},
+            raw={"error": error_code},
             latency_ms=round((time.perf_counter() - t0) * 1000, 2),
             telemetry=telemetry,
         )
@@ -151,16 +151,15 @@ class WeatherAgent(BaseAgent):
                 label="openweather",
             )
         except httpx.HTTPError as exc:
-            logger.warning("OpenWeatherMap HTTP error: %s", exc)
-            return await self._fallback(lat, lon, t0, str(exc), {"http_max_attempts": max_attempts})
+            logger.warning("OpenWeatherMap request failed (%s)", type(exc).__name__)
+            return await self._fallback(lat, lon, t0, "openweather_request_failed", {"http_max_attempts": max_attempts})
         except Exception as exc:  # pragma: no cover
-            logger.warning("OpenWeatherMap request failed: %s", exc)
-            return await self._fallback(lat, lon, t0, str(exc), {"http_max_attempts": max_attempts})
+            logger.warning("OpenWeatherMap request failed (%s)", type(exc).__name__)
+            return await self._fallback(lat, lon, t0, "openweather_response_invalid", {"http_max_attempts": max_attempts})
 
         if not isinstance(data, dict) or not _owm_ok(data):
-            msg = data.get("message", "unknown error") if isinstance(data, dict) else "invalid response"
-            logger.warning("OpenWeatherMap logical error: %s", msg)
-            return await self._fallback(lat, lon, t0, f"openweather_api: {msg}", {"http_max_attempts": max_attempts})
+            logger.warning("OpenWeatherMap returned an invalid response")
+            return await self._fallback(lat, lon, t0, "openweather_api_error", {"http_max_attempts": max_attempts})
 
         wind = data.get("wind", {}) or {}
         main = data.get("main", {}) or {}

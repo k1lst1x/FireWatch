@@ -36,7 +36,7 @@ from . import alertwest
 from .base import BaseAgent
 from .geo_hints import log_if_outside_california
 from .http_retry import httpx_get_bytes, httpx_get_json
-from .images import _PROJECT_ROOT, load_image_bytes, media_type_for
+from .images import _PROJECT_ROOT, load_image_bytes, media_type_for, redact_inline_image_data
 from .llm import llm_available
 from .vision import vision_fire_check
 
@@ -122,8 +122,8 @@ class CameraAgent(BaseAgent):
                 conf, det = await self._run_yolo(url)
                 return conf, det, "yolo", None
             except Exception as exc:
-                yolo_error = str(exc)
-                logger.warning("YOLO failed, trying vision LLM: %s", exc)
+                yolo_error = type(exc).__name__
+                logger.warning("YOLO failed (%s), trying vision LLM", yolo_error)
         else:
             yolo_error = "ultralytics not installed" if YOLO is None else f"weights not found: {settings.yolo_model_path}"
         if llm_available():
@@ -147,8 +147,8 @@ class CameraAgent(BaseAgent):
         try:
             cams = await alertwest.fetch_cameras()
         except Exception as exc:
-            logger.warning("AlertWest camera lookup failed: %s", exc)
-            return {"source": "alertwest", "error": str(exc)}, None
+            logger.warning("AlertWest camera lookup failed (%s)", type(exc).__name__)
+            return {"source": "alertwest", "error": "camera_directory_unavailable"}, None
         near = alertwest.nearest(cams, lat, lon, settings.alertwest_max_km)
         if not near:
             return {
@@ -198,11 +198,17 @@ class CameraAgent(BaseAgent):
 
     async def run(self, *, lat: float, lon: float, image_url: str | None = None, **_) -> CameraResult:
         t0 = time.perf_counter()
+        # Validate inline images even when the lightweight fallback is active.
+        # The raw data URL is never returned or persisted as an incident blob.
+        stored_image_url = image_url
+        if image_url and image_url.startswith("data:"):
+            await load_image_bytes(image_url)
+            stored_image_url = None
         if settings.is_mock:
             return CameraResult(
                 confidence=0.87,
                 detected=True,
-                image_url=image_url or "https://mock.alertcalifornia.org/cam001.jpg",
+                image_url=stored_image_url or "https://mock.alertcalifornia.org/cam001.jpg",
                 raw={"cameras": [{"id": "mock-cam-001", "name": "Mock Ridge Cam"}]},
                 latency_ms=round((time.perf_counter() - t0) * 1000, 2),
                 telemetry={
@@ -236,11 +242,11 @@ class CameraAgent(BaseAgent):
             try:
                 raw = await self._fetch_alertca(lat, lon)
             except httpx.HTTPError as exc:
-                logger.warning("AlertCA HTTP error: %s", exc)
-                raw = {"error": str(exc), "cameras": []}
+                logger.warning("AlertCA request failed (%s)", type(exc).__name__)
+                raw = {"error": "alertca_request_failed", "cameras": []}
             except Exception as exc:  # pragma: no cover - defensive
-                logger.warning("AlertCA request failed: %s", exc)
-                raw = {"error": str(exc), "cameras": []}
+                logger.warning("AlertCA request failed (%s)", type(exc).__name__)
+                raw = {"error": "alertca_response_invalid", "cameras": []}
 
             url = first_camera_image_url(raw)
 
@@ -251,14 +257,14 @@ class CameraAgent(BaseAgent):
                 if yolo_err:
                     raw = {**raw, "yolo_error": yolo_err}
             except Exception as exc:
-                logger.warning("Camera detection failed: %s", exc)
-                raw = {**raw, "yolo_error": str(exc)}
+                logger.warning("Camera detection failed (%s)", type(exc).__name__)
+                raw = {**raw, "yolo_error": type(exc).__name__}
 
         return CameraResult(
             confidence=confidence,
             detected=detected,
-            image_url=url,
-            raw=raw,
+            image_url=None if url and url.startswith("data:") else url,
+            raw=redact_inline_image_data(raw),
             latency_ms=round((time.perf_counter() - t0) * 1000, 2),
             telemetry={
                 "http_max_attempts": settings.collection_http_max_attempts,

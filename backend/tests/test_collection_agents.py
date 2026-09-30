@@ -228,4 +228,4 @@ async def test_firms_error_text_is_not_treated_as_empty_csv():
     ):
         r = await SatelliteAgent().run(lat=37.63, lon=-119.62)
     assert r.hotspot_detected is False
-    assert "Invalid MAP_KEY" in (r.raw or {}).get("error", "")
+    assert r.raw == {"error": "nasa_firms_response_invalid"}

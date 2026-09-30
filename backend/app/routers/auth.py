@@ -39,5 +39,7 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/me")
-async def me(current_user: User = Depends(require_user)):
+async def me(current_user: User | None = Depends(require_user)):
+    if current_user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token")
     return {"id": current_user.id, "email": current_user.email, "role": current_user.role.value}

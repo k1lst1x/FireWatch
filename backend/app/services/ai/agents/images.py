@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import io
 import pathlib
+from typing import Any
 from urllib.parse import urlparse
 
 from PIL import Image, UnidentifiedImageError
@@ -13,6 +14,17 @@ from .http_retry import httpx_get_bytes
 
 _PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[5]
 _DEMO_ROOT = (_PROJECT_ROOT / "demo_images").resolve()
+
+
+def redact_inline_image_data(value: Any) -> Any:
+    """Remove inline image blobs before a result crosses a persistence boundary."""
+    if isinstance(value, str):
+        return None if value.startswith("data:") else value
+    if isinstance(value, dict):
+        return {key: redact_inline_image_data(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [redact_inline_image_data(item) for item in value]
+    return value
 
 
 def _local_path(ref: str) -> pathlib.Path | None:

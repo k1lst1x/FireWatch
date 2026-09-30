@@ -14,6 +14,7 @@ from app.db.models import Incident, IncidentStatus
 from app.db.session import get_db
 from app.dependencies import require_admin, require_user
 from app.services.ai.agents import alertwest
+from app.services.ai.agents.images import redact_inline_image_data
 from app.config import settings
 from app.services.ai.integrations import integration_status
 from app.services.ai.schemas.pipeline import AlertEvent, ConfirmationStatus, PipelineResult
@@ -44,6 +45,7 @@ class ReviewRequest(BaseModel):
 def _incident_row(result: PipelineResult, event: AlertEvent) -> Incident:
     confirmed = result.fusion is not None and result.fusion.status == ConfirmationStatus.CONFIRMED
     incident_id = result.output.incident_id if result.output else f"dismissed-{uuid.uuid4().hex[:12]}"
+    serialized_result = redact_inline_image_data(result.model_dump(mode="json"))
     return Incident(
         id=incident_id,
         event_id=event.event_id,
@@ -52,7 +54,7 @@ def _incident_row(result: PipelineResult, event: AlertEvent) -> Incident:
         status=IncidentStatus.PENDING_REVIEW if confirmed and result.output else IncidentStatus.DISMISSED,
         criticality=result.classification.criticality.value if result.classification else None,
         combined_score=result.fusion.combined_score if result.fusion else 0.0,
-        result=result.model_dump(mode="json"),
+        result=serialized_result,
     )
 
 
@@ -267,7 +269,7 @@ async def get_live_weather(
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
         except Exception as exc:
-            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Weather service error: {exc}")
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Weather service unavailable") from exc
 
 
 @router.get("/telemetry/nasa-hotspots")

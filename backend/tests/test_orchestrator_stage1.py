@@ -47,6 +47,7 @@ async def test_stage1_camera_exception_still_returns_pipeline(monkeypatch):
 
     assert result.camera is not None
     assert result.camera.raw.get("error") == "agent_exception"
-    assert "simulated camera failure" in (result.camera.raw.get("detail") or "")
+    assert result.camera.raw.get("exception_type") == "RuntimeError"
+    assert "detail" not in result.camera.raw
     assert result.fusion is not None
     assert result.fusion.status == ConfirmationStatus.DISMISSED

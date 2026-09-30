@@ -137,20 +137,20 @@ class SatelliteAgent(BaseAgent):
         try:
             data = await fetch_firms_rows(url, timeout=18.0, max_attempts=max_attempts)
         except httpx.HTTPError as exc:
-            logger.warning("NASA FIRMS HTTP error: %s", exc)
+            logger.warning("NASA FIRMS request failed (%s)", type(exc).__name__)
             return SatelliteResult(
                 thermal_confidence=0.0,
                 hotspot_detected=False,
-                raw={"error": str(exc)},
+                raw={"error": "nasa_firms_request_failed"},
                 latency_ms=round((time.perf_counter() - t0) * 1000, 2),
                 telemetry={"http_max_attempts": max_attempts, "bbox_half_deg": bbox_half},
             )
         except Exception as exc:  # pragma: no cover - JSON/defensive
-            logger.warning("NASA FIRMS request failed: %s", exc)
+            logger.warning("NASA FIRMS request failed (%s)", type(exc).__name__)
             return SatelliteResult(
                 thermal_confidence=0.0,
                 hotspot_detected=False,
-                raw={"error": str(exc)},
+                raw={"error": "nasa_firms_response_invalid"},
                 latency_ms=round((time.perf_counter() - t0) * 1000, 2),
                 telemetry={"http_max_attempts": max_attempts, "bbox_half_deg": bbox_half},
             )
