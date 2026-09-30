@@ -141,7 +141,7 @@ export function IncidentList({
 export function StatusStrip({ status, backendUp }: { status: PipelineStatus | null; backendUp: boolean }) {
   const mode = status ? (status.mock ? 'MOCK' : 'LIVE') : '—'
   return (
-    <div className="fwmap-mono pointer-events-none flex items-center gap-5 text-[10px] tracking-wider text-[var(--ash-3)]">
+    <div className="fwmap-mono pointer-events-none flex items-center gap-5 rounded-full border border-white/20 bg-[#52525b] px-4 py-1.5 text-[10px] tracking-wider text-zinc-100 shadow-[0_2px_10px_rgba(0,0,0,0.35)]">
       <span className="flex items-center gap-1.5">
         <Activity size={11} /> MODE: {mode}
       </span>
