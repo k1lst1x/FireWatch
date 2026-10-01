@@ -72,6 +72,25 @@ def test_label_from_incident():
     assert lb == {"station": "sierra", "camera_conf": 0.9, "camera_detected": True, "thermal_conf": 0.65, "hotspot": True, "fire": 0, "source": "dispatcher"}
 
 
+@pytest.mark.asyncio
+async def test_run_flower_uses_worker_thread_for_blocking_subprocess(monkeypatch):
+    """The router must work with Windows' SelectorEventLoop under reload."""
+    from app.routers import federation
+
+    call: dict[str, object] = {}
+
+    def fake_run(args, **kwargs):
+        call["args"] = args
+        call["kwargs"] = kwargs
+        return subprocess.CompletedProcess(args, 0, stdout=b"round complete")
+
+    monkeypatch.setattr(federation.subprocess, "run", fake_run)
+
+    assert await federation.run_flower(2) == "round complete"
+    assert call["args"] == [sys.executable, "-m", "app.federation.run", "--rounds", "2"]
+    assert call["kwargs"]["cwd"] == str(federation.BACKEND.parent)
+
+
 @pytest.mark.slow
 def test_flower_simulation_end_to_end(tmp_path):
     state = tmp_path / "state.json"

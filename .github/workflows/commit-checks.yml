@@ -23,7 +23,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.13'
+          python-version: '3.12'
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v6
@@ -51,10 +51,34 @@ jobs:
           NASA_FIRMS_MAP_KEY: ''
           ALERTCA_API_KEY: ''
         run: >-
-          PYTHONPATH=backend uv run pytest
+          PYTHONPATH=backend uv run pytest -m 'not slow'
           backend/tests/test_security_boundaries.py
+          backend/tests/test_federation.py
           backend/tests/test_orchestrator_stage1.py
           backend/tests/test_http_retry.py
+
+  windows-flower-runtime:
+    name: Windows Flower dependency check
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Resolve the locked Windows runtime
+        run: uv sync --frozen --no-dev
+
+      - name: Verify Flower simulation imports
+        run: uv run python -c "from flwr.simulation import run_simulation; print('Flower simulation runtime is available')"
 
   frontend:
     name: Frontend checks
