@@ -284,7 +284,7 @@ function Console() {
       />
 
       {/* header */}
-      <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between px-5 py-4">
+      <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between border-b border-white/10 bg-slate-950/90 px-5 py-4 shadow-[0_8px_24px_rgba(0,0,0,0.5)] backdrop-blur-md">
         <div className="pointer-events-auto flex items-center gap-3">
           <FlameMark size={22} />
           <span className="text-[17px] font-semibold tracking-[-0.03em]">FireWatch</span>
