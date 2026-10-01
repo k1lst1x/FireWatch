@@ -125,7 +125,10 @@ async def test_satellite_agent_hotspots_dict_payload():
 
 @pytest.mark.asyncio
 async def test_satellite_agent_missing_map_key():
-    with patch("app.services.ai.agents.satellite.httpx_get_bytes", new_callable=AsyncMock) as get_bytes:
+    with (
+        patch("app.services.ai.agents.satellite.settings.nasa_firms_map_key", ""),
+        patch("app.services.ai.agents.satellite.httpx_get_bytes", new_callable=AsyncMock) as get_bytes,
+    ):
         result = await SatelliteAgent().run(lat=1.0, lon=1.0)
 
     get_bytes.assert_not_called()
@@ -196,7 +199,10 @@ async def test_weather_agent_openweather_fields_and_spread_risk():
 
 @pytest.mark.asyncio
 async def test_weather_agent_missing_api_key():
-    with patch("app.services.ai.agents.weather.httpx_get_json", new_callable=AsyncMock) as get_json:
+    with (
+        patch("app.services.ai.agents.weather.settings.openweathermap_api_key", ""),
+        patch("app.services.ai.agents.weather.httpx_get_json", new_callable=AsyncMock) as get_json,
+    ):
         result = await WeatherAgent().run(lat=34.0, lon=-118.0)
 
     get_json.assert_not_called()
