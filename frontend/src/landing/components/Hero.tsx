@@ -27,7 +27,7 @@ export function Nav({ onJump }: { onJump: (hash: string) => void }) {
           ))}
         </div>
         <div className="flex items-center gap-2.5">
-          <a className="fw-link hidden text-[13px] sm:inline" href="https://github.com/zaf-07/FireWatch" target="_blank" rel="noreferrer">
+          <a className="fw-link hidden text-[13px] sm:inline" href="https://github.com/k1lst1x/FireWatch" target="_blank" rel="noreferrer">
             GitHub
           </a>
           <button className="fw-btn fw-btn--amber flex items-center gap-1.5" onClick={() => navigate('/dashboard')}>

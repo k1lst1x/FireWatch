@@ -73,6 +73,7 @@ async def test_camera_schema_success_with_alertca_and_yolo():
             new_callable=AsyncMock,
             return_value=alert_payload,
         ),
+        patch.object(CameraAgent, "_yolo_weights_present", return_value=True),
         patch.object(CameraAgent, "_run_yolo", new_callable=AsyncMock, return_value=(0.73, True)),
         patch("app.services.ai.agents.camera.settings.alertca_api_key", "token"),
     ):
@@ -93,6 +94,7 @@ async def test_camera_schema_event_image_only():
             "app.services.ai.agents.camera.httpx_get_json",
             new_callable=AsyncMock,
         ) as gj,
+        patch.object(CameraAgent, "_yolo_weights_present", return_value=True),
         patch.object(CameraAgent, "_run_yolo", new_callable=AsyncMock, return_value=(0.1, False)),
         patch("app.services.ai.agents.camera.settings.alertca_api_key", ""),
     ):

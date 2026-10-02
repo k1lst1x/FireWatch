@@ -22,6 +22,7 @@ async def test_camera_agent_alertca_and_yolo():
             new_callable=AsyncMock,
             return_value=alert_payload,
         ),
+        patch.object(CameraAgent, "_yolo_weights_present", return_value=True),
         patch.object(CameraAgent, "_run_yolo", new_callable=AsyncMock, return_value=(0.82, True)),
         patch("app.services.ai.agents.camera.settings.alertca_api_key", "test-token"),
     ):
@@ -42,6 +43,7 @@ async def test_camera_agent_uses_explicit_image_url_skips_alertca():
     with (
         patch("app.services.ai.agents.camera.httpx_get_json", new_callable=AsyncMock) as get_json,
         patch("app.services.ai.agents.camera.httpx_get_bytes", new_callable=AsyncMock) as get_bytes,
+        patch.object(CameraAgent, "_yolo_weights_present", return_value=True),
         patch.object(CameraAgent, "_run_yolo", new_callable=AsyncMock, return_value=(0.5, True)),
         patch("app.services.ai.agents.camera.settings.alertca_api_key", ""),
     ):
