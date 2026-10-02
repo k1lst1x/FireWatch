@@ -23,13 +23,18 @@ export default function Landing() {
 
   // ---- preloader: hold until the first video frames land, then reveal
   useEffect(() => {
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const lowPower = window.matchMedia('(max-width: 767px), (prefers-reduced-motion: reduce)').matches
     document.documentElement.style.overflow = 'hidden'
     let done = false
     const reveal = () => {
       if (done) return
       done = true
       document.documentElement.style.overflow = ''
+      if (lowPower) {
+        gsap.set(loaderRef.current, { display: 'none' })
+        gsap.set('[data-hero-plate]', { scale: 1 })
+        return
+      }
       gsap.timeline()
         .to(barRef.current, { scaleX: 1, duration: 0.4, ease: 'power2.inOut' })
         .to(loaderRef.current, { opacity: 0, duration: 0.6, ease: 'power2.inOut' })
@@ -40,11 +45,21 @@ export default function Landing() {
         .from('[data-nav]', { opacity: 0, duration: 0.9, ease: 'power2.out' }, '<')
       ScrollTrigger.refresh()
     }
+    // Mobile renders the poster instead of video, so never hold the page for a
+    // frame that will not arrive.
+    if (lowPower) {
+      const fallback = window.setTimeout(reveal, 150)
+      return () => {
+        window.clearTimeout(fallback)
+        document.documentElement.style.overflow = ''
+      }
+    }
+
     gsap.to(barRef.current, { scaleX: 0.72, duration: 2, ease: 'power2.out' })
     const v = videoRef.current
     v?.addEventListener('loadeddata', reveal, { once: true })
     // never block the page on the network
-    const fallback = window.setTimeout(reveal, reduced ? 500 : 3200)
+    const fallback = window.setTimeout(reveal, 3200)
     return () => {
       window.clearTimeout(fallback)
       v?.removeEventListener('loadeddata', reveal)
@@ -54,8 +69,12 @@ export default function Landing() {
 
   // ---- smooth scroll + reveals
   useEffect(() => {
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    const lenis = new Lenis({ lerp: reduced ? 1 : 0.09, wheelMultiplier: 0.9 })
+    const lowPower = window.matchMedia('(max-width: 767px), (prefers-reduced-motion: reduce)').matches
+    // Native scrolling is more responsive on touch devices. The desktop motion
+    // system remains available on larger screens.
+    if (lowPower) return
+
+    const lenis = new Lenis({ lerp: 0.09, wheelMultiplier: 0.9 })
     lenisRef.current = lenis
     const nav = document.querySelector<HTMLElement>('[data-nav]')
     let lastY = 0

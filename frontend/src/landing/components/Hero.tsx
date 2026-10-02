@@ -106,7 +106,8 @@ export function HeroBackdrop({ videoRef }: { videoRef: RefObject<HTMLVideoElemen
     // 4K only on wide, high-DPI displays; 1080p everywhere else. Sources are set here so
     // we never fetch both, and a data-saver connection keeps the poster alone.
     const conn = (navigator as { connection?: { saveData?: boolean } }).connection
-    if (conn?.saveData) return
+    const lowPower = window.matchMedia('(max-width: 767px), (prefers-reduced-motion: reduce)').matches
+    if (conn?.saveData || lowPower) return
     const wide = window.matchMedia('(min-width: 1600px)').matches && (window.devicePixelRatio || 1) > 1.2
     v.src = wide ? heroVideoUrl('ggb-2160.mp4') : heroVideoUrl('ggb-1080.mp4')
     v.load()

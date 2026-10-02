@@ -122,6 +122,8 @@ export function InspirationShowcase() {
               <img
                 src="https://images.unsplash.com/photo-1542385151-efd9000785a0?auto=format&fit=crop&w=600&q=80"
                 alt="Spaceborne Sensors"
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex items-end p-5">
@@ -136,6 +138,8 @@ export function InspirationShowcase() {
               <img
                 src="https://images.unsplash.com/photo-1516214104703-d870798883c5?auto=format&fit=crop&w=800&q=80"
                 alt="Incident Operations Command"
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
               />
               <div className="absolute top-8 left-6 rounded-xl border border-white/20 bg-black/80 px-3.5 py-2 text-left backdrop-blur-md shadow-xl">
@@ -156,6 +160,8 @@ export function InspirationShowcase() {
               <img
                 src="https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?auto=format&fit=crop&w=600&q=80"
                 alt="Thermal Analytics"
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex items-end p-5">
@@ -359,6 +365,8 @@ export function InspirationShowcase() {
             <img
               src="https://images.unsplash.com/photo-1541888946425-d0fbb186c5f6?auto=format&fit=crop&w=1000&q=80"
               alt="Operations Center Team"
+              loading="lazy"
+              decoding="async"
               className="rounded-2xl border border-white/15 shadow-2xl object-cover w-full h-[460px]"
             />
             {/* Floating Telemetry Badge matching inspiration layout */}
@@ -417,7 +425,7 @@ export function InspirationShowcase() {
             {TESTIMONIALS.map((t) => (
               <div key={t.name} className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur flex flex-col justify-between">
                 <div>
-                  <img src={t.photo} alt={t.name} className="w-14 h-14 rounded-full object-cover border border-white/20 mb-4" />
+                  <img src={t.photo} alt={t.name} loading="lazy" decoding="async" className="w-14 h-14 rounded-full object-cover border border-white/20 mb-4" />
                   <h4 className="text-[16px] font-bold text-white">{t.name}</h4>
                   <span className="text-[12px] text-zinc-400 block mb-4">{t.role}</span>
                   <p className="text-[13.5px] text-zinc-300 italic leading-relaxed">"{t.quote}"</p>
@@ -466,6 +474,8 @@ export function InspirationShowcase() {
               <img
                 src={SECTORS[sectorTab].image}
                 alt={SECTORS[sectorTab].title}
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover transition-all duration-500"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex items-end p-6">
@@ -504,7 +514,7 @@ export function InspirationShowcase() {
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {INSIGHTS.map((item) => (
               <div key={item.title} className="rounded-2xl border border-white/10 overflow-hidden bg-white/[0.02] hover:border-white/20 transition-all flex flex-col justify-between">
-                <img src={item.image} alt={item.title} className="w-full h-44 object-cover" />
+                <img src={item.image} alt={item.title} loading="lazy" decoding="async" className="w-full h-44 object-cover" />
                 <div className="p-5 flex-1 flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between text-[11px] text-zinc-400 mb-2 mono">

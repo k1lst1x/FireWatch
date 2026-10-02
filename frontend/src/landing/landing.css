@@ -310,3 +310,24 @@
   }
   .fw-marquee__track { animation: none; }
 }
+
+/* Touch devices prioritise input and first paint over cinematic effects. */
+@media (max-width: 767px) {
+  .fw-plate { will-change: auto; }
+  .fw-plate__pass,
+  .fw-plate::after { display: none; }
+  .fw .fw-marquee__track,
+  .fw .fw-view__scan,
+  .fw .fw-bbox,
+  .fw .fw-hot,
+  .fw .fw-sat,
+  .fw .fw-wind line,
+  .fw .fw-dot--ok,
+  .fw .fw-dot--amber,
+  .fw .fw-spinner,
+  .fw .fw-packet { animation: none; }
+  .fw-nav.is-solid,
+  .fw-ask,
+  .fw-chip { backdrop-filter: none; }
+  .fw-fold > * { content-visibility: auto; contain-intrinsic-size: 800px; }
+}

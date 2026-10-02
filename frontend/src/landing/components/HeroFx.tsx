@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import { LOOP_DURATION, TOWER_TRACK } from '../videoTrack'
 
+const lowPowerMode = () => window.matchMedia('(max-width: 767px), (prefers-reduced-motion: reduce)').matches
+
 /**
  * Overlay chrome for the hero plate.
  *
@@ -44,7 +46,7 @@ export function TowerLock({
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    if (lowPowerMode()) return
     let raf = 0
     const draw = () => {
       raf = requestAnimationFrame(draw)
@@ -80,6 +82,7 @@ export function TowerLock({
 function useTimecode(video: RefObject<HTMLVideoElement | null>) {
   const [tc, setTc] = useState('00:00:00')
   useEffect(() => {
+    if (lowPowerMode()) return
     const id = window.setInterval(() => {
       const t = video.current?.currentTime ?? 0
       const base = Date.now() / 1000
