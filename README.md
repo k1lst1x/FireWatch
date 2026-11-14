@@ -1,7 +1,11 @@
-# FireWatch
+# FireWatch — 2nd Place Winner
 
-AI-driven wildfire detection and emergency response platform. It combines camera
-footage, NASA FIRMS satellite hotspots, and weather data to assess potential fires.
+> **Flower Labs Collaborative Agent Hackathon at Stanford University**
+
+FireWatch is a multi-agent AI wildfire detection and emergency response platform.
+It combines live camera footage, NASA FIRMS satellite hotspots, and weather data
+to detect potential wildfires, reduce false alarms, assess incident severity, and
+recommend an appropriate response.
 
 ## Local setup
 
